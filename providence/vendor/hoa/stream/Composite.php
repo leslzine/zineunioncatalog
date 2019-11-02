@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -39,9 +39,9 @@ namespace Hoa\Stream;
 /**
  * Class \Hoa\Stream\Composite.
  *
- * Declare a composite stream, i.e. a stream that use stream.
+ * Declare a composite stream, i.e. a stream that uses a stream.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 abstract class Composite
@@ -81,7 +81,7 @@ abstract class Composite
      *
      * @return  object
      */
-    protected function getStream()
+    public function getStream()
     {
         return $this->_stream;
     }

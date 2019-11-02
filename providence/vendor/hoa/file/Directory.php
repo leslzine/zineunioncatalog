@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,7 +43,7 @@ use Hoa\Stream;
  *
  * Directory handler.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Directory extends Generic
@@ -81,7 +81,6 @@ class Directory extends Generic
      * @param   string  $context       Context ID (please, see the
      *                                 \Hoa\Stream\Context class).
      * @param   bool    $wait          Differ opening or not.
-     * @return  void
      */
     public function __construct(
         $streamName,
@@ -140,8 +139,7 @@ class Directory extends Generic
     }
 
     /**
-     * Copy file.
-     * Return the destination directory path if succeed, false otherwise.
+     * Recursive copy of a directory.
      *
      * @param   string  $to       Destination path.
      * @param   bool    $force    Force to copy if the file $to already exists.
@@ -176,8 +174,25 @@ class Directory extends Generic
                 continue;
             }
 
-            $file->open()->copy($_to, $force);
-            $file->close();
+            // This is not possible to do `$file->open()->copy();
+            // $file->close();` because the file will be opened in read and
+            // write mode. In a PHAR for instance, this operation is
+            // forbidden. So a special care must be taken to open file in read
+            // only mode.
+            $handle = null;
+
+            if (true === $file->isFile()) {
+                $handle = new Read($file->getPathname());
+            } elseif (true === $file->isDir()) {
+                $handle = new Directory($file->getPathName());
+            } elseif (true === $file->isLink()) {
+                $handle = new Link\Read($file->getPathName());
+            }
+
+            if (null !== $handle) {
+                $handle->copy($_to, $force);
+                $handle->close();
+            }
         }
 
         return true;

@@ -55,4 +55,71 @@ JSON;
 		$this->assertEquals('(test) test', caSanitizeStringForJsonEncode('(test) test'));
 	}
 	# -------------------------------------------------------
+	public function testParseLengthExpressionHelper() {
+		$vm_ret = caParseLengthExpression("4x6", ['delimiter' => 'X', 'precision' => 0]);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(2, $vm_ret);
+		$this->assertEquals("4 in", $vm_ret[0]);
+		$this->assertEquals("6 in", $vm_ret[1]);
+		
+		$vm_ret = caParseLengthExpression("4/6", ['delimiter' => '/', 'units' => 'mm']);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(2, $vm_ret);
+		$this->assertEquals("4.0 mm", $vm_ret[0]);
+		$this->assertEquals("6.0 mm", $vm_ret[1]);
+		
+		$vm_ret = caParseLengthExpression("4x6cm", ['precision' => 0]);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(2, $vm_ret);
+		$this->assertEquals("4 cm", $vm_ret[0]);
+		$this->assertEquals("6 cm", $vm_ret[1]);
+		
+		$vm_ret = caParseLengthExpression("4 1/2\"", ['precision' => 1]);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(1, $vm_ret);
+		$this->assertEquals("4.5 in", $vm_ret[0]);
+		
+		$vm_ret = caParseLengthExpression("4 ¾\"", ['precision' => 2]);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(1, $vm_ret);
+		$this->assertEquals("4.75 in", $vm_ret[0]);
+		
+		$vm_ret = caParseLengthExpression("4 ¾\"", ['precision' => 1]);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(1, $vm_ret);
+		$this->assertEquals("4.8 in", $vm_ret[0]);
+		
+		$vm_ret = caParseLengthExpression("4 ¾ x 4 ⅜ in", ['precision' => 1]);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(2, $vm_ret);
+		$this->assertEquals("4.8 in", $vm_ret[0]);
+		$this->assertEquals("4.4 in", $vm_ret[1]);
+		
+		
+		$vm_ret = caParseLengthExpression("4.151x6cm", ['precision' => 2]);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(2, $vm_ret);
+		$this->assertEquals("4.15 cm", $vm_ret[0]);
+		$this->assertEquals("6.0 cm", $vm_ret[1]);
+		
+		$vm_ret = caParseLengthExpression("4 x 6cm x 8\"", ['precision' => 0]);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(3, $vm_ret);
+		$this->assertEquals("4 cm", $vm_ret[0]);
+		$this->assertEquals("6 cm", $vm_ret[1]);
+		$this->assertEquals("8 in", $vm_ret[2]);
+		
+		$vm_ret = caParseLengthExpression("4\" x 5", ['precision' => 0]);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(2, $vm_ret);
+		$this->assertEquals("4 in", $vm_ret[0]);
+		$this->assertEquals("5 in", $vm_ret[1]);
+		
+		$vm_ret = caParseLengthExpression("4\" x 5", ['precision' => 1]);
+		$this->assertInternalType('array', $vm_ret);
+		$this->assertCount(2, $vm_ret);
+		$this->assertEquals("4.0 in", $vm_ret[0]);
+		$this->assertEquals("5.0 in", $vm_ret[1]);
+	}
+	# -------------------------------------------------------
 }

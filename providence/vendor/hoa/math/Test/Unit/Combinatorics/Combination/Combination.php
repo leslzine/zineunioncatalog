@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,17 +34,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-namespace Hoa\Math\Test\Unit\Sampler\Combinatorics\Combination;
+namespace Hoa\Math\Test\Unit\Combinatorics\Combination;
 
 use Hoa\Math\Combinatorics\Combination as CUT;
 use Hoa\Test;
 
 /**
- * Class \Hoa\Math\Test\Unit\Sampler\Combinatorics\Combination.
+ * Class \Hoa\Math\Test\Unit\Combinatorics\Combination.
  *
  * Test suite of the Γ combination.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Combination extends Test\Unit\Suite

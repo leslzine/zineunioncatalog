@@ -9,9 +9,9 @@ use Elasticsearch\Common\Exceptions;
  *
  * @category Elasticsearch
  * @package  Elasticsearch\Endpoints
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class Index extends AbstractEndpoint
 {
@@ -49,7 +49,7 @@ class Index extends AbstractEndpoint
      * @throws \Elasticsearch\Common\Exceptions\RuntimeException
      * @return string
      */
-    protected function getURI()
+    public function getURI()
     {
         if (isset($this->index) !== true) {
             throw new Exceptions\RuntimeException(
@@ -71,18 +71,13 @@ class Index extends AbstractEndpoint
         if (isset($id) === true) {
             $uri = "/$index/$type/$id";
         }
-
-        if ($this->createIfAbsent === true) {
-            $uri .= $this->addCreateFlag();
-        }
-
         return $uri;
     }
 
     /**
      * @return string[]
      */
-    protected function getParamWhitelist()
+    public function getParamWhitelist()
     {
         return array(
             'consistency',
@@ -97,13 +92,14 @@ class Index extends AbstractEndpoint
             'ttl',
             'version',
             'version_type',
+            'pipeline'
         );
     }
 
     /**
      * @return string
      */
-    protected function getMethod()
+    public function getMethod()
     {
         if (isset($this->id) === true) {
             return 'PUT';
@@ -116,23 +112,12 @@ class Index extends AbstractEndpoint
      * @return array
      * @throws \Elasticsearch\Common\Exceptions\RuntimeException
      */
-    protected function getBody()
+    public function getBody()
     {
         if (isset($this->body) !== true) {
             throw new Exceptions\RuntimeException('Document body must be set for index request');
         } else {
             return $this->body;
-        }
-    }
-
-    private function addCreateFlag()
-    {
-        if (isset($this->id) === true) {
-            return '/_create';
-        } else {
-            $this->params['op_type'] = 'create';
-
-            return "";
         }
     }
 }

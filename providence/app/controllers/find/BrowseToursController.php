@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2011-2013 Whirl-i-Gig
+ * Copyright 2011-2015 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -26,8 +26,8 @@
  * ----------------------------------------------------------------------
  */
  
- 	require_once(__CA_LIB_DIR__."/ca/BaseBrowseController.php");
- 	require_once(__CA_LIB_DIR__."/ca/Browse/TourBrowse.php");
+ 	require_once(__CA_LIB_DIR__."/BaseBrowseController.php");
+ 	require_once(__CA_LIB_DIR__."/Browse/TourBrowse.php");
  
  	class BrowseToursController extends BaseBrowseController {
  		# -------------------------------------------------------
@@ -46,13 +46,6 @@
  		 * Is associative array: keys are view labels, values are view specifier to be incorporated into view name
  		 */ 
  		protected $opa_views;
- 		 
- 		 
- 		/**
- 		 * List of available result sorting fields
- 		 * Is associative array: values are display names for fields, keys are full fields names (table.field) to be used as sort
- 		 */
- 		protected $opa_sorts;
  		
  		/**
  		 * Name of "find" used to defined result context for ResultContext object
@@ -66,22 +59,8 @@
  			$this->opo_browse = new TourBrowse($this->opo_result_context->getSearchExpression(), 'providence');
  			
  			$this->opa_views = array(
-				'list' => _t('list'),
-				'editable' => _t('editable')
+				'list' => _t('list')
 			);
-			 
-			$this->opa_sorts = array_merge(array(
-			 	'ca_tour_labels.name' => _t('name'),
-			), $this->opa_sorts);
- 		}
- 		# -------------------------------------------------------
- 		/**
- 		 * Returns string representing the name of the item the browse will return
- 		 *
- 		 * If $ps_mode is 'singular' [default] then the singular version of the name is returned, otherwise the plural is returned
- 		 */
- 		public function browseName($ps_mode='singular') {
- 			return ($ps_mode === 'singular') ? _t('tour') : _t('tours');
  		}
  		# -------------------------------------------------------
  		/**
@@ -92,4 +71,3 @@
  		}
  		# -------------------------------------------------------
  	}
- ?>

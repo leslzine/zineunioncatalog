@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@ use Hoa\Test;
  *
  * Test suite of the map iterator.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Map extends Test\Unit\Suite
@@ -91,7 +91,7 @@ class Map extends Test\Unit\Suite
                             ->boolean($iterator->hasChildren())
                                 ->isTrue()
                             ->object($children = $iterator->getChildren())
-                                ->isInstanceOf('Hoa\Iterator\Recursive\Map')
+                                ->isInstanceOf(LUT\Recursive\Map::class)
                             ->array(iterator_to_array($children))
                                 ->isEqualTo(['b', 'c', 'd']);
                     } elseif ('e' === $key) {
@@ -99,7 +99,7 @@ class Map extends Test\Unit\Suite
                             ->boolean($iterator->hasChildren())
                                 ->isTrue()
                             ->object($children = $iterator->getChildren())
-                                ->isInstanceOf('Hoa\Iterator\Recursive\Map')
+                                ->isInstanceOf(LUT\Recursive\Map::class)
                             ->array(iterator_to_array($children))
                                 ->isEqualTo(['f', 'g', 'i']);
                     } elseif ('k' === $value) {

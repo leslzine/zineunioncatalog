@@ -4,7 +4,7 @@
     "type"       : "library",
     "keywords"   : ["library", "math", "combinatorics", "arrangement",
                     "combination", "counting", "set", "permutation", "sampler"],
-    "homepage"   : "http://hoa-project.net/",
+    "homepage"   : "https://hoa-project.net/",
     "license"    : "BSD-3-Clause",
     "authors"    : [
         {
@@ -13,21 +13,26 @@
         },
         {
             "name"    : "Hoa community",
-            "homepage": "http://hoa-project.net/"
+            "homepage": "https://hoa-project.net/"
         }
     ],
     "support": {
-        "email" : "support@lists.hoa-project.net",
-        "irc"   : "irc://irc.freenode.org/hoaproject",
-        "source": "http://git.hoa-project.net/"
+        "email" : "support@hoa-project.net",
+        "irc"   : "irc://chat.freenode.net/hoaproject",
+        "forum" : "https://users.hoa-project.net/",
+        "docs"  : "https://central.hoa-project.net/Documentation/Library/Math",
+        "source": "https://central.hoa-project.net/Resource/Library/Math"
     },
     "require": {
-        "hoa/core"    : "~2.0",
-        "hoa/iterator": "~1.0",
-        "hoa/compiler": "~2.0"
+        "hoa/compiler"   : "~3.0",
+        "hoa/consistency": "~1.0",
+        "hoa/exception"  : "~1.0",
+        "hoa/iterator"   : "~2.0",
+        "hoa/protocol"   : "~1.0",
+        "hoa/zformat"    : "~1.0"
     },
     "require-dev": {
-        "hoa/test": "~1.0"
+        "hoa/test": "~2.0"
     },
     "autoload": {
         "psr-4": {
@@ -36,7 +41,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "0.x-dev"
+            "dev-master": "1.x-dev"
         }
     }
 }

@@ -7,9 +7,9 @@ namespace Elasticsearch\Namespaces;
  *
  * @category Elasticsearch
  * @package  Elasticsearch\Namespaces\ClusterNamespace
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class ClusterNamespace extends AbstractNamespace
 {
@@ -39,9 +39,8 @@ class ClusterNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Cluster\Health');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -65,9 +64,8 @@ class ClusterNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Cluster\Reroute');
         $endpoint->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -97,9 +95,8 @@ class ClusterNamespace extends AbstractNamespace
         $endpoint->setParams($params)
                  ->setIndex($index)
                  ->setMetric($metric);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -121,9 +118,8 @@ class ClusterNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Cluster\Stats');
         $endpoint->setNodeID($nodeID)
                  ->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -144,9 +140,8 @@ class ClusterNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Cluster\Settings\Put');
         $endpoint->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -162,9 +157,8 @@ class ClusterNamespace extends AbstractNamespace
         /** @var \Elasticsearch\Endpoints\Cluster\Settings\Put $endpoint */
         $endpoint = $endpointBuilder('Cluster\Settings\Get');
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -183,8 +177,29 @@ class ClusterNamespace extends AbstractNamespace
         /** @var \Elasticsearch\Endpoints\Cluster\PendingTasks $endpoint */
         $endpoint = $endpointBuilder('Cluster\PendingTasks');
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
+    }
+
+    /**
+     * $params['include_yes_decisions'] = (bool) Return 'YES' decisions in explanation (default: false)
+     *
+     * @param $params array Associative array of parameters
+     *
+     * @return array
+     */
+    public function allocationExplain($params = array())
+    {
+        $body = $this->extractArgument($params, 'body');
+
+        /** @var callback $endpointBuilder */
+        $endpointBuilder = $this->endpoints;
+
+        /** @var \Elasticsearch\Endpoints\Cluster\AllocationExplain $endpoint */
+        $endpoint = $endpointBuilder('Cluster\AllocationExplain');
+        $endpoint->setBody($body)
+                 ->setParams($params);
+
+        return $this->performRequest($endpoint);
     }
 }

@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2009-2015 Whirl-i-Gig
+ * Copyright 2009-2018 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -28,19 +28,24 @@
  	$vo_result = $this->getVar('result');
 	$vn_items_per_page = $this->getVar('current_items_per_page');
 	
+	
+	$i = 0;
+	$vn_item_count = 0;
+	
+	
 ?>
 	<div id="commentsResults">
 		<form id="commentListForm"><input type="hidden" name="mode" value="search">
 		
 		<div style="text-align:right;">
-			<?php print _t('Batch actions'); ?>: <a href='#' onclick='jQuery("#commentListForm").attr("action", "<?php print caNavUrl($this->request, 'manage', 'Comments', 'Approve'); ?>").submit();' class='form-button'><span class='form-button approve'><?php print caNavIcon($this->request, __CA_NAV_BUTTON_APPROVE__); ?><span class='formtext'><?php print _t("Approve"); ?></span></span></a>
-			<a href='#' onclick='jQuery("#commentListForm").attr("action", "<?php print caNavUrl($this->request, 'manage', 'Comments', 'Delete'); ?>").submit();' class='form-button'><span class='form-button delete'><?php print caNavIcon($this->request, __CA_NAV_BUTTON_DELETE__); ?><span class='formtext'><?php print _t("Delete"); ?></span></span></a>
+			<?php print _t('Batch actions'); ?>: <a href='#' onclick='jQuery("#commentListForm").attr("action", "<?php print caNavUrl($this->request, 'manage', 'Comments', 'Approve'); ?>").submit();' class='form-button'><span class='form-button approveDelete'><?php print caNavIcon(__CA_NAV_ICON_APPROVE__, 1); ?><span class='formtext'><?php print _t("Approve"); ?></span></span></a>
+			<a href='#' onclick='jQuery("#commentListForm").attr("action", "<?php print caNavUrl($this->request, 'manage', 'Comments', 'Delete'); ?>").submit();' class='form-button'><span class='form-button approveDelete'><?php print caNavIcon(__CA_NAV_ICON_DELETE__, 1); ?><span class='formtext'><?php print _t("Delete"); ?></span></span></a>
 		</div>
-		<table id="caCommentsList" class="listtable" border="0" cellpadding="0" cellspacing="1" style="margin-top:10px;">
+		<table id="caItemList" class="listtable" border="0" cellpadding="0" cellspacing="1" style="margin-top:10px;">
 			<thead>
 				<tr>
 					<th class="list-header-nosort">
-						<?php print _t('Author'); ?>
+						<?php print _t('Item'); ?>
 					</th>
 					<th class="list-header-nosort">
 						<?php print _t('Comment'); ?>
@@ -52,10 +57,10 @@
 						<?php print _t('Rating'); ?>
 					</th>
 					<th class="list-header-nosort">
-						<?php print _t('Date'); ?>
+						<?php print _t('Author'); ?>
 					</th>
 					<th class="list-header-nosort">
-						<?php print _t('Commented On'); ?>
+						<?php print _t('Date'); ?>
 					</th>
 					<th class="list-header-nosort">
 						<?php print _t('Status'); ?>
@@ -65,52 +70,13 @@
 			</thead>
 			<tbody>
 
-<?php
-		$i = 0;
-		$vn_item_count = 0;
-		$o_tep = new TimeExpressionParser();
-		$o_datamodel = Datamodel::load();
-		
+<?php	
 		while(($vn_item_count < $vn_items_per_page) && $vo_result->nextHit()) {
-			if (!($t_table = $o_datamodel->getInstanceByTableNum($vo_result->get('ca_item_comments.table_num'), true))) {
+			if (!($t_table = Datamodel::getInstanceByTableNum($vo_result->get('ca_item_comments.table_num'), true))) {
 				continue;
 			}
 ?>
 				<tr>
-					<td>
-						<div class="caUserCommentsListName">
-<?php 
-						if($vo_result->get('ca_item_comments.user_id')){
-							print $vo_result->get('ca_users.fname')." ".$vo_result->get('ca_users.lname')."<br/>".$vo_result->get('ca_users.email');
-						}else{
-							print $vo_result->get('ca_item_comments.name')."<br/>".$vo_result->get('ca_item_comments.user_email');
-						}
-?>
-						</div>
-					</td>
-					<td>
-						<div class="caUserCommentsListComment">
-							<?php print $vo_result->get('ca_item_comments.comment'); ?>
-						</div>
-					</td>	
-					<td>
-<?php
-						if($vo_result->getMediaTag('ca_item_comments.media1', "thumbnail")){
-							print "<span style='white-space: nowrap;'>".$vo_result->getMediaTag("ca_item_comments.media1", "thumbnail");
-							print caNavButton($this->request, __CA_NAV_BUTTON_DOWNLOAD__, _t('Download'), '', 'manage', 'Comments', 'DownloadMedia', array('version' => 'original', 'comment_id' => $vo_result->get('ca_item_comments.comment_id'), 'mode' => 'search', 'download' => 1), array(), array('no_background' => true, 'dont_show_content' => true));
-							print "</span>";
-						}
-?>
-					</td>
-					<td>
-						<?php print ($vn_tmp = $vo_result->get('ca_item_comments.rating')) ? $vn_tmp : "-"; ?>
-					</td>
-					<td>
-<?php 
-						$o_tep->setUnixTimestamps($vn_tmp = $vo_result->get('ca_item_comments.created_on'), $vn_tmp);
-						print $o_tep->getText();
-?>
-					</td>
 					<td>
 <?php
 						$vs_commented_on = "";
@@ -121,7 +87,40 @@
 							}
 						}
 
-						print $vs_commented_on;
+						print caEditorLink($this->request, $vs_commented_on, '', $vo_result->get('ca_item_comments.table_num'), $vo_result->get('ca_item_comments.row_id'));
+?>
+					</td>
+					<td>
+						<div class="caUserCommentsListComment">
+							<?php print $vo_result->get('ca_item_comments.comment'); ?>
+						</div>
+					</td>	
+					<td>
+<?php
+						if($vo_result->getMediaTag('ca_item_comments.media1', "thumbnail")){
+							print "<span style='white-space: nowrap;'>".$vo_result->getMediaTag("ca_item_comments.media1", "thumbnail");
+							print caNavButton($this->request, __CA_NAV_ICON_DOWNLOAD__, _t('Download'), '', 'manage', 'Comments', 'DownloadMedia', array('version' => 'original', 'comment_id' => $vo_result->get('ca_item_comments.comment_id'), 'mode' => 'search', 'download' => 1), array(), array('no_background' => true, 'dont_show_content' => true));
+							print "</span>";
+						}
+?>
+					</td>
+					<td>
+						<?php print ($vn_tmp = $vo_result->get('ca_item_comments.rating')) ? $vn_tmp : "-"; ?>
+					</td>
+					<td>
+						<div class="caUserCommentsListName">
+<?php 
+						if($vo_result->get('ca_item_comments.user_id')){
+							print $vo_result->get('ca_users.fname')." ".$vo_result->get('ca_users.lname')." (".$vo_result->get('ca_users.email').")";
+						}else{
+							print $vo_result->get('ca_item_comments.name')." (".$vo_result->get('ca_item_comments.user_email').")";
+						}
+?>
+						</div>
+					</td>
+					<td>
+<?php 
+						print $vo_result->get('ca_item_comments.created_on');
 ?>
 					</td>
 					<td>

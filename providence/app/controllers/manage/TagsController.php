@@ -25,10 +25,10 @@
  *
  * ----------------------------------------------------------------------
  */
- 	require_once(__CA_LIB_DIR__."/ca/BaseSearchController.php");
+ 	require_once(__CA_LIB_DIR__."/BaseSearchController.php");
 	require_once(__CA_MODELS_DIR__."/ca_item_tags.php");
 	require_once(__CA_MODELS_DIR__."/ca_items_x_tags.php");
- 	require_once(__CA_LIB_DIR__."/ca/Search/ItemTagSearch.php");
+ 	require_once(__CA_LIB_DIR__."/Search/ItemTagSearch.php");
  	
  	class TagsController extends BaseSearchController {
  		# -------------------------------------------------------
@@ -48,12 +48,6 @@
  		 */ 
  		protected $opa_views;
  		
- 		/**
- 		 * List of available search-result sorting fields
- 		 * Is associative array: values are display names for fields, keys are full fields names (table.field) to be used as sort
- 		 */
- 		protected $opa_sorts;
- 		
  		# -------------------------------------------------------
  		public function __construct(&$po_request, &$po_response, $pa_view_paths=null) {
  			parent::__construct($po_request, $po_response, $pa_view_paths);
@@ -61,11 +55,6 @@
  		 	$this->opa_views = array(
 				'list' => _t('list')
 			 );
-			 
-			 $this->opa_sorts = array(
-				'ca_items_x_tags.created_on' => _t('date'),
-				'ca_items_x_tags.user_id' => _t('user')
-			);
 			 
  			AssetLoadManager::register('tableList');
  		}

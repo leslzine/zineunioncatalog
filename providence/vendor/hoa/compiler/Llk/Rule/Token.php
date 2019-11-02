@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,13 +44,13 @@ use Hoa\File;
  *
  * The token rule.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Token extends Rule
 {
     /**
-     * LL(k) compiler of hoa://Library/Regex/Grammar.pp
+     * LL(k) compiler of hoa://Library/Regex/Grammar.pp.
      *
      * @var \Hoa\Compiler\Llk\Parser
      */
@@ -114,13 +114,20 @@ class Token extends Rule
      * @param   string  $tokenName      Token name.
      * @param   string  $nodeId         Node ID.
      * @param   int     $unification    Unification index.
-     * @return  void
+     * @param   bool    $kept           Whether the token is kept or not in the AST.
      */
-    public function __construct($name, $tokenName, $nodeId, $unification)
-    {
+    public function __construct(
+        $name,
+        $tokenName,
+        $nodeId,
+        $unification,
+        $kept = false
+    ) {
         parent::__construct($name, null, $nodeId);
+
         $this->_tokenName   = $tokenName;
         $this->_unification = $unification;
+        $this->setKept($kept);
 
         return;
     }

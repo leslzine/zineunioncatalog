@@ -40,12 +40,15 @@ var caUI = caUI || {};
 			uiStyle: 'horizontal',	// 'horizontal' [default] means side-to-side scrolling browser; 'vertical' means <select>-based vertically oriented browser.
 			//  The horizontal browser requires more space but it arguably easier and more pleasant to use with large hierarchies.
 			//  The vertical browser is more compact and works well with smaller hierarchies
+			
+			uiDirection: 'up',	// direction of browse in vertical mode; value may be 'up' or 'down'
 
 			bundle: '',
 
 			levelDataUrl: '',
 			initDataUrl: '',
 			editUrl: '',
+			sortSaveUrl: '',
 
 			editUrlForFirstLevel: '',
 			editDataForFirstLevel: '',	// name of key in data to use for item_id in first level, if different from other levels
@@ -80,6 +83,10 @@ var caUI = caUI || {};
 			autoShrink: false,
 			autoShrinkMaxHeightPx: 180,
 			autoShrinkAnimateID: '',
+			
+			allowDragAndDropSorting: false,
+			dragAndDropSortInProgress: false,
+			dontAllowDragAndDropSortForFirstLevel: false,
 
 			/* how do we treat disabled items in the browser? can be
 			 *  - 'disable' : list items default behavior - i.e. show the item but don't make it a clickable link and apply the disabled class ('classNameDisabled' option)
@@ -92,7 +99,9 @@ var caUI = caUI || {};
 			displayCurrentSelectionOnLoad: true,
 			typeMenuID: '',
 
+			indicator: '',	
 			indicatorUrl: '',
+			
 			editButtonIcon: '',
 			disabledButtonIcon: '',
 
@@ -108,7 +117,9 @@ var caUI = caUI || {};
 			_pageLoadsForLevel:[],				// log of which pages per-level have been loaded already
 			_queuedLoadsForLevel: [],			// parameters for pending loads per-level
 
-			maxItemsPerHierarchyLevelPage: 500	// maximum number of items to load at one time into a level
+			maxItemsPerHierarchyLevelPage: 500,	// maximum number of items to load at one time into a level
+			
+			selectMultiple: ''
 		}, options);
 		
 		
@@ -120,6 +131,7 @@ var caUI = caUI || {};
 		}
 
 		if (!jQuery.inArray(that.uiStyle, ['horizontal', 'vertical'])) { that.uiStyle = 'horizontal'; }		// verify the uiStyle is valid
+		if (!jQuery.inArray(that.uiDirection, ['up', 'down'])) { that.uiDirection = 'up'; }		// verify the uiDirection is valid
 
 		if (that.uiStyle == 'horizontal') {
 			// create scrolling container
@@ -275,10 +287,22 @@ var caUI = caUI || {};
 				if (that.uiStyle == 'vertical') {
 					// Create new <select> to display list of items
 					var newLevelList = "<select class='" + that.className + "' id='" + newLevelListID + "' name='" + newLevelListID + "' style='width: "+ (that.browserWidth - 32) + "px;'></select>";	// allow 24 pixels for spinner
-					var newLevelDiv = "<div class='" + that.className + "' id='" + newLevelDivID + "'>" + newLevelList;
-					if (level > 0) { newLevelDiv += "<br/>⬆</div>"; }
-
-					jQuery('#' + that.container + '_select_container').prepend(newLevelDiv);
+					var newLevelDiv = "<div class='" + that.className + "' id='" + newLevelDivID + "'>";
+					
+					if (that.uiDirection == 'up') {
+						newLevelDiv += newLevelList;
+						if (level > 0) { newLevelDiv += "<br/>⬆</div>"; }
+						jQuery('#' + that.container + '_select_container').prepend(newLevelDiv);
+					} else {
+						if (level > 0) { newLevelDiv += "⬇<br/>"; }
+						newLevelDiv += newLevelList + "</div>";
+						if (level == 0) {
+							jQuery('#' + that.container + '_select_container').prepend(newLevelDiv);
+						} else {
+							jQuery('#' + that.container + '_select_container').append(newLevelDiv);
+						}
+					}
+					
 					jQuery('#' + newLevelDivID).data('level', level);
 					jQuery('#' + newLevelDivID).data('parent_id', item_id);
 					jQuery('#' + newLevelListID).change(function() {
@@ -411,7 +435,7 @@ var caUI = caUI || {};
 							if (that.uiStyle == 'horizontal') {
 								var moreButton = '';
 								if (that.editButtonIcon) {
-									if (item.children > 0) {
+									if ((item.children > 0) || (level == 0)){
 										moreButton = "<div style='float: right;'><a href='#' id='hierBrowser_" + that.name + '_level_' + level + '_item_' + item['item_id'] + "_edit' >" + that.editButtonIcon + "</a></div>";
 									} else {
 										moreButton = "<div style='float: right;'><a href='#' id='hierBrowser_" + that.name + '_level_' + level + '_item_' + item['item_id'] + "_edit'  class='noChildren'>" + that.disabledButtonIcon + "</a></div>";
@@ -427,7 +451,7 @@ var caUI = caUI || {};
 									switch (that.disabledItems) {
 										case 'full':
 											jQuery('#' + newLevelListID).append(
-												"<li class='" + that.className + "'>" + moreButton + "<a href='#' id='hierBrowser_" + that.name + '_level_' + level + '_item_' + item['item_id'] + "' class='" + that.className + "'>"  +  item.name + "</a></li>"
+												"<li data-item_id='" +  item['item_id'] + "' class='" + that.className + "'>" + moreButton + "<a href='#' id='hierBrowser_" + that.name + '_level_' + level + '_item_' + item['item_id'] + "' class='" + that.className + "'>"  +  item.name + "</a></li>"
 											);
 											break;
 										case 'hide': // item is hidden -> noop
@@ -436,17 +460,17 @@ var caUI = caUI || {};
 										case 'disabled':
 										default:
 											jQuery('#' + newLevelListID).append(
-												"<li class='" + that.className + "'>" + moreButton +  '<span class="' + that.classNameDisabled + '">' + item.name + "</span></li>"
+												"<li data-item_id='" +  item['item_id'] + "' class='" + that.className + "'>" + moreButton +  '<span class="' + that.classNameDisabled + '">' + item.name + "</span></li>"
 											);
 											break;
 									}
 								} else if ((!((level == 0) && that.dontAllowEditForFirstLevel))) {
 									jQuery('#' + newLevelListID).append(
-										"<li class='" + that.className + "'>" + moreButton +"<a href='#' id='hierBrowser_" + that.name + '_level_' + level + '_item_' + item['item_id'] + "' class='" + that.className + "'>"  +  item.name + "</a></li>"
+										"<li data-item_id='" +  item['item_id'] + "' class='" + that.className + "'>" + moreButton +"<a href='#' id='hierBrowser_" + that.name + '_level_' + level + '_item_' + item['item_id'] + "' class='" + that.className + "'>"  +  item.name + "</a></li>"
 									);
 								} else {
 									jQuery('#' + newLevelListID).append(
-										"<li class='" + that.className + "'>" + moreButton + "<a href='#' id='hierBrowser_" + that.name + '_level_' + level + '_item_' + item['item_id'] + "' class='" + that.className + "'>"  +  item.name + "</a></li>"
+										"<li data-item_id='" +  item['item_id'] + "' class='" + that.className + "'>" + moreButton + "<a href='#' id='hierBrowser_" + that.name + '_level_' + level + '_item_' + item['item_id'] + "' class='" + that.className + "'>"  +  item.name + "</a></li>"
 									);
 								}
 
@@ -483,12 +507,30 @@ var caUI = caUI || {};
 										editUrl = that.editUrl;
 									}
 									if (editUrl) {
-										jQuery('#' + newLevelListID + " li:last a:last").click(function() {
-											jQuery(document).attr('location', editUrl + jQuery(this).data(editData));
+										jQuery('#' + newLevelListID + " li:last a:last").click(function(e) {
+											if (that.dragAndDropSortInProgress) { e.preventDefault(); return false; }
+											if(that.selectMultiple){
+												// code to add + infront of items when multiple selections for or browse are permitted
+												// #facet_apply is in ajax_browse_Facet_html.php
+												if (jQuery(this).attr('facet_item_selected') == '1') {
+													jQuery(this).attr('facet_item_selected', '');
+												} else {
+													jQuery(this).attr('facet_item_selected', '1');
+												}
+
+												if (jQuery(".facetItem[facet_item_selected='1']").length > 0) {
+													jQuery("#facet_apply").show();
+												} else {
+													jQuery("#facet_apply").hide();
+												}
+											}else{
+												jQuery(document).attr('location', editUrl + jQuery(this).data(editData));
+											}
 											return false;
 										});
 									} else {
-										jQuery('#' + newLevelListID + " li:last a:last").click(function() {
+										jQuery('#' + newLevelListID + " li:last a:last").click(function(e) {
+											if (that.dragAndDropSortInProgress) { e.preventDefault(); return false; }
 											var l = jQuery(this).parent().parent().parent().data('level');
 											var item_id = jQuery(this).data('item_id');
 											var has_children = jQuery(this).data('has_children');
@@ -527,7 +569,7 @@ var caUI = caUI || {};
 								}
 							} else {
 								if (that.uiStyle == 'vertical') {
-									jQuery("#" + newLevelListID).append(jQuery("<option></option>").val(item.item_id).text(item.name));
+									jQuery("#" + newLevelListID).append(jQuery("<option></option>").val(item.item_id).text(jQuery('<div />').html(item.name).text()));
 								}
 							}
 							// Pass item_id to caller if required
@@ -538,20 +580,47 @@ var caUI = caUI || {};
 						} else {
 							if (item.parent_id && (that.selectedItemIDs.length == 0)) { that.selectedItemIDs[0] = item.parent_id; }
 						}
-					}//);
+					}
+
+					if (item_id && that.doDragAndDropSorting(item_id) && that.sortSaveUrl && (((level == 0) && !that.dontAllowDragAndDropSortForFirstLevel) || (level > 0))) {
+						jQuery("#" + newLevelListID).sortable({ opacity: 0.7, 
+							revert: 0.2, 
+							scroll: true , 
+							update: function(e, ui) {
+								var dragged_dom_id = jQuery(ui.item).find("a").attr('id');
+								var dragged_item_id = jQuery("#" + dragged_dom_id).data('item_id');
+								
+								var after_dom_id = jQuery(ui.item).prev().find("a").attr('id');
+								var after_item_id = jQuery("#" + after_dom_id).data('item_id');
+								
+								jQuery.getJSON(that.sortSaveUrl, {'id': dragged_item_id, 'after_id': after_item_id}, function(d) {
+									if (!d) { alert("Could not save reordering"); return false; }
+									if (d.errors.length > 0) { alert("Could not save reordering: " + d.errors.join('; ')); return false; }
+									if (d.timestamp) { jQuery("#" + newLevelListID).closest('form').find('input[name=form_timestamp]').val(d.timestamp); }
+									return false;
+								});
+								
+							},
+							start: function(e, ui) {
+								that.dragAndDropSortInProgress = true;
+							},
+							stop: function(e, ui) {
+								that.dragAndDropSortInProgress = false;
+							}
+						});
+					}
 
 					var dontDoSelectAndScroll = false;
 					if (!foundSelected && that.selectedItemIDs[level]) {
 						var p = jQuery('#' + newLevelDivID).data("page");
 						if (!p || (p < 0)) { p = 0; }
-
+						
 						jQuery('#' + newLevelDivID).data("page", p);
-						if (jQuery('#' + newLevelDivID).data('itemCount') > (p * that.maxItemsPerHierarchyLevelPage)) {
-							if (!that._pageLoadsForLevel[level] || !that._pageLoadsForLevel[level][p]) {		// is page loaded?
+						if (parseInt(jQuery('#' + newLevelDivID).data('itemCount')) > parseInt(p * that.maxItemsPerHierarchyLevelPage)) {
+							if (!that._pageLoadsForLevel[level] || !that._pageLoadsForLevel[level][p + 1]) {		// is page loaded?
 								if (!that._pageLoadsForLevel[level]) { that._pageLoadsForLevel[level] = []; }
 								that._pageLoadsForLevel[level][p] = true;
-
-								that.queueHierarchyLevelDataLoad(level, item_id, false, newLevelDivID, newLevelListID, selected_item_id, p * that.maxItemsPerHierarchyLevelPage, true);
+								that.queueHierarchyLevelDataLoad(level, item_id, false, newLevelDivID, newLevelListID, selected_item_id, (p + 1) * that.maxItemsPerHierarchyLevelPage, true);
 
 								dontDoSelectAndScroll = true;	// we're still trying to find selected item so don't try to select it
 							}
@@ -560,8 +629,6 @@ var caUI = caUI || {};
 						// Treat sequential page load as init so selected item is highlighted
 						is_init = true;
 					}
-
-
 
 					if (that.uiStyle == 'horizontal') {
 						if (!is_init) {
@@ -665,6 +732,20 @@ var caUI = caUI || {};
 			}
 		}
 		// --------------------------------------------------------------------------------
+		// Determine if drag and drop sorting is permitted. The allowDragAndDropSorting option can be
+		// either a boolean, in which case sorting is supported (or not) across the board, or an object
+		// with properties set to trigger ids from first-level items and boolean values indicating whether
+		// drag and drop sorting is permitted for the list under that first-level item. The object format
+		// is used when displaying lists in the hierarchy browser to provide for per-list sort settings.
+		//
+		// @param int id 
+		// @return mixed boolean and object with sorting map. 
+		//
+		that.doDragAndDropSorting = function(id) {
+			if (typeof that.allowDragAndDropSorting !== 'object') return that.allowDragAndDropSorting;
+			return that.allowDragAndDropSorting[id];
+		}
+		// --------------------------------------------------------------------------------
 		// Records user selection of an item
 		//
 		// @param int level The level where the selected item resides
@@ -725,27 +806,37 @@ var caUI = caUI || {};
 		// @param string newLevelDivID The ID of the <div> containing the level
 		//
 		that.showIndicator = function(newLevelDivID) {
-			if (!that.indicatorUrl) { return; }
-			if (jQuery('#' + newLevelDivID + ' img._indicator').length > 0) {
-				jQuery('#' + newLevelDivID + ' img._indicator').show();
+			if (!that.indicatorUrl && !that.indicator) { return; }
+			
+			if (jQuery('#' + newLevelDivID + ' div._indicator').length > 0) {
+				jQuery('#' + newLevelDivID + ' div._indicator').show();
 				return;
 			}
+			
 			var level = jQuery('#' + newLevelDivID).data('level');
+				
+			if (that.indicatorUrl) {
+				var img = document.createElement('img');
+				img.src = that.indicatorUrl;
+				img.className = '_indicatorImg';
+				
+				that.indicator = that.indicatorUrl;
+			} 
+				
+				
+			var indicator = document.createElement('div');
 			if (that.uiStyle == 'vertical') {
-				var indicator = document.createElement('img');
-				indicator.src = that.indicatorUrl;
-				indicator.className = '_indicator';
 				if (level == 0) { jQuery('#' + newLevelDivID).append("<br/>"); }
-				jQuery('#' + newLevelDivID).append(indicator);
 			} else {
-				var indicator = document.createElement('img');
-				indicator.src = that.indicatorUrl;
+				jQuery(indicator).append(that.indicator);
 				indicator.className = '_indicator';
 				indicator.style.position = 'absolute';
 				indicator.style.left = '50%';
 				indicator.style.top = '50%';
-				jQuery('#' + newLevelDivID).append(indicator);
 			}
+			jQuery('#' + newLevelDivID).append(indicator);
+			
+			return;
 		}
 		// --------------------------------------------------------------------------------
 		// Remove spinning progress indicator from specified level <div>
@@ -753,7 +844,9 @@ var caUI = caUI || {};
 		// @param string newLevelDivID The ID of the <div> containing the level
 		//
 		that.hideIndicator = function(newLevelDivID) {
-			jQuery('#' + newLevelDivID + ' img._indicator').hide();		// hide loading indicator
+			if (!that.indicatorUrl && !that.indicator) { return; }
+			
+			jQuery('#' + newLevelDivID + ' div._indicator').hide();		// hide loading indicator
 		}
 		// --------------------------------------------------------------------------------
 		// Returns database id (the primary key in the database, *NOT* the DOM ID) of currently selected item

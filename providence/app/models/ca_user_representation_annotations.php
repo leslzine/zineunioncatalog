@@ -34,8 +34,8 @@
    *
    */
 
-require_once(__CA_LIB_DIR__."/ca/IBundleProvider.php");
-require_once(__CA_LIB_DIR__."/ca/BundlableLabelableBaseModelWithAttributes.php");
+require_once(__CA_LIB_DIR__."/IBundleProvider.php");
+require_once(__CA_LIB_DIR__."/BundlableLabelableBaseModelWithAttributes.php");
 require_once(__CA_MODELS_DIR__.'/ca_object_representations.php');
 
 
@@ -280,7 +280,18 @@ class ca_user_representation_annotations extends BundlableLabelableBaseModelWith
 	protected function initLabelDefinitions($pa_options=null) {
 		parent::initLabelDefinitions($pa_options);
 		$this->BUNDLES['ca_objects'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects'));
-		$this->BUNDLES['ca_objects_table'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects table'));
+		$this->BUNDLES['ca_objects_table'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects list'));
+		$this->BUNDLES['ca_objects_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects list'));
+		$this->BUNDLES['ca_object_representations_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related object representations list'));
+		$this->BUNDLES['ca_entities_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related entities list'));
+		$this->BUNDLES['ca_places_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related places list'));
+		$this->BUNDLES['ca_occurrences_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related occurrences list'));
+		$this->BUNDLES['ca_collections_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related collections list'));
+		$this->BUNDLES['ca_list_items_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related list items list'));
+		$this->BUNDLES['ca_storage_locations_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related storage locations list'));
+		$this->BUNDLES['ca_loans_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related loans list'));
+		$this->BUNDLES['ca_movements_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related movements list'));
+		$this->BUNDLES['ca_object_lots_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related object lots list'));
 		$this->BUNDLES['ca_entities'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related entities'));
 		$this->BUNDLES['ca_places'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related places'));
 		$this->BUNDLES['ca_occurrences'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related occurrences'));
@@ -520,10 +531,10 @@ class ca_user_representation_annotations extends BundlableLabelableBaseModelWith
  	# ------------------------------------------------------
  	public function loadProperties($ps_type, $pa_parameters=null) {
  		$vs_classname = $ps_type.'RepresentationAnnotationCoder';
- 		if (!file_exists(__CA_LIB_DIR__.'/ca/RepresentationAnnotationPropertyCoders/'.$vs_classname.'.php')) {
+ 		if (!file_exists(__CA_LIB_DIR__.'/RepresentationAnnotationPropertyCoders/'.$vs_classname.'.php')) {
  			return false;
  		}
- 		include_once(__CA_LIB_DIR__.'/ca/RepresentationAnnotationPropertyCoders/'.$vs_classname.'.php');
+ 		include_once(__CA_LIB_DIR__.'/RepresentationAnnotationPropertyCoders/'.$vs_classname.'.php');
  		
  		$this->opo_annotations_properties = new $vs_classname;
  		$this->opo_annotations_properties->setPropertyValues(is_array($pa_parameters) ? $pa_parameters : $this->get('props'));
@@ -639,10 +650,10 @@ class ca_user_representation_annotations extends BundlableLabelableBaseModelWith
  	# ------------------------------------------------------
  	static public function getPropertiesCoderInstance($ps_type) {
  		$vs_classname = $ps_type.'RepresentationAnnotationCoder';
- 		if (!file_exists(__CA_LIB_DIR__.'/ca/RepresentationAnnotationPropertyCoders/'.$vs_classname.'.php')) {
+ 		if (!file_exists(__CA_LIB_DIR__.'/RepresentationAnnotationPropertyCoders/'.$vs_classname.'.php')) {
  			return false;
  		}
- 		include_once(__CA_LIB_DIR__.'/ca/RepresentationAnnotationPropertyCoders/'.$vs_classname.'.php');
+ 		include_once(__CA_LIB_DIR__.'/RepresentationAnnotationPropertyCoders/'.$vs_classname.'.php');
  		
  		return new $vs_classname;
  	}

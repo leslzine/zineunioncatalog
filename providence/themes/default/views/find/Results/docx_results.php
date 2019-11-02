@@ -25,6 +25,7 @@
  *
  * ----------------------------------------------------------------------
  */
+ 
 	$t_display				= $this->getVar('t_display');
 	$va_display_list 		= $this->getVar('display_list');
 	$vo_result 				= $this->getVar('result');
@@ -128,7 +129,7 @@ $phpWord->addTableStyle('myOwnTableStyle', $styleTable, $styleFirstRow);
 		$contentCell = $table->addCell(12 * $cmToTwips);
 
 		$contentCell->addText(
-			htmlentities(html_entity_decode(strip_tags(br2nl($vo_result->get('preferred_labels'))), ENT_QUOTES | ENT_HTML5), ENT_XML1),
+			caEscapeForXML(html_entity_decode(strip_tags(br2nl($vo_result->get('preferred_labels'))), ENT_QUOTES | ENT_HTML5)),
 			$styleHeaderFont
 		);
 
@@ -140,7 +141,7 @@ $phpWord->addTableStyle('myOwnTableStyle', $styleTable, $styleFirstRow);
 				($va_info['settings']['display_mode'] == 'media') // make sure that for the 'url' mode we don't insert the image here
 			) {
 				// Inserting bundle name on one line
-				$contentCell->addText(htmlentities($va_info['display'].': ', ENT_XML1), $styleBundleNameFont);
+				$contentCell->addText(caEscapeForXML($va_info['display']).': ', $styleBundleNameFont);
 
 				// Fetching version asked & corresponding file
 				$vs_version = str_replace("ca_object_representations.media.", "", $va_info['bundle_name']);
@@ -158,10 +159,9 @@ $phpWord->addTableStyle('myOwnTableStyle', $styleTable, $styleFirstRow);
 
 			} elseif ($vs_display_text = $t_display->getDisplayValue($vo_result, $vn_placement_id, array_merge(array('request' => $this->request, 'purify' => true), is_array($va_info['settings']) ? $va_info['settings'] : array()))) {
 
-				$textrun = $contentCell->addTextRun();
-				$textrun->addText(htmlentities($va_info['display'].': ', ENT_XML1), $styleBundleNameFont);
-				$textrun->addText(
-					htmlentities(html_entity_decode(strip_tags(br2nl($vs_display_text)), ENT_QUOTES | ENT_HTML5), ENT_XML1),
+                $textrun = $contentCell->createTextRun();
+		        $textrun->addText(
+					preg_replace("![\n\r]!", "<w:br/>", caEscapeForXML(html_entity_decode(strip_tags(br2nl($vs_display_text)), ENT_QUOTES | ENT_HTML5))),
 					$styleContentFont
 				);
 

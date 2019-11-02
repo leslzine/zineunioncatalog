@@ -7,7 +7,7 @@
                     "parser", "token", "rule", "pp", "ast", "trace", "syntax",
                     "sampler", "isotropic", "random", "uniform", "exhaustive",
                     "coverage"],
-    "homepage"   : "http://hoa-project.net/",
+    "homepage"   : "https://hoa-project.net/",
     "license"    : "BSD-3-Clause",
     "authors"    : [
         {
@@ -16,25 +16,29 @@
         },
         {
             "name"    : "Hoa community",
-            "homepage": "http://hoa-project.net/"
+            "homepage": "https://hoa-project.net/"
         }
     ],
     "support": {
-        "email" : "support@lists.hoa-project.net",
-        "irc"   : "irc://irc.freenode.org/hoaproject",
-        "source": "http://git.hoa-project.net/"
+        "email" : "support@hoa-project.net",
+        "irc"   : "irc://chat.freenode.net/hoaproject",
+        "forum" : "https://users.hoa-project.net/",
+        "docs"  : "https://central.hoa-project.net/Documentation/Library/Compiler",
+        "source": "https://central.hoa-project.net/Resource/Library/Compiler"
     },
     "require": {
-        "hoa/core"    : "~2.0",
-        "hoa/file"    : "~0.0",
-        "hoa/iterator": "~1.0",
-        "hoa/math"    : "~0.0",
-        "hoa/regex"   : "~0.0",
-        "hoa/visitor" : "~1.0"
+        "hoa/consistency": "~1.0",
+        "hoa/exception"  : "~1.0",
+        "hoa/file"       : "~1.0",
+        "hoa/iterator"   : "~2.0",
+        "hoa/math"       : "~1.0",
+        "hoa/protocol"   : "~1.0",
+        "hoa/regex"      : "~1.0",
+        "hoa/visitor"    : "~2.0"
     },
     "require-dev": {
-        "hoa/json": "~1.0",
-        "hoa/test": "~1.0"
+        "hoa/json": "~2.0",
+        "hoa/test": "~2.0"
     },
     "autoload": {
         "psr-4": {
@@ -43,7 +47,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "2.x-dev"
+            "dev-master": "3.x-dev"
         }
     }
 }

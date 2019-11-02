@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,7 +36,7 @@
 
 namespace Hoa\File\Link;
 
-use Hoa\Core;
+use Hoa\Consistency;
 use Hoa\File;
 
 /**
@@ -44,7 +44,7 @@ use Hoa\File;
  *
  * Link handler.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Link extends File
@@ -58,7 +58,6 @@ class Link extends File
      * @param   string  $context       Context ID (please, see the
      *                                 \Hoa\Stream\Context class).
      * @param   bool    $wait          Differ opening or not.
-     * @return  void
      * @throws  \Hoa\File\Exception
      */
     public function __construct(
@@ -145,7 +144,7 @@ class Link extends File
         } elseif (true === is_file($target)) {
             return new File\ReadWrite(
                 $target,
-                \Hoa\File::MODE_APPEND_READ_WRITE,
+                File::MODE_APPEND_READ_WRITE,
                 $context
             );
         } elseif (true === is_dir($target)) {
@@ -194,4 +193,4 @@ class Link extends File
 /**
  * Flex entity.
  */
-Core\Consistency::flexEntity('Hoa\File\Link\Link');
+Consistency::flexEntity('Hoa\File\Link\Link');

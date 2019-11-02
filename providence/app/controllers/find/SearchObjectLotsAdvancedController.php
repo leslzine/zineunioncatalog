@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2010-2013 Whirl-i-Gig
+ * Copyright 2010-2015 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -25,9 +25,9 @@
  *
  * ----------------------------------------------------------------------
  */
- 	require_once(__CA_LIB_DIR__."/ca/BaseAdvancedSearchController.php");
- 	require_once(__CA_LIB_DIR__."/ca/Search/ObjectLotSearch.php");
- 	require_once(__CA_LIB_DIR__."/ca/Browse/ObjectLotBrowse.php");
+ 	require_once(__CA_LIB_DIR__."/BaseAdvancedSearchController.php");
+ 	require_once(__CA_LIB_DIR__."/Search/ObjectLotSearch.php");
+ 	require_once(__CA_LIB_DIR__."/Browse/ObjectLotBrowse.php");
 	require_once(__CA_MODELS_DIR__."/ca_object_lots.php");
 	require_once(__CA_MODELS_DIR__."/ca_sets.php");
  	
@@ -50,12 +50,6 @@
  		protected $opa_views;
  		
  		/**
- 		 * List of available search-result sorting fields
- 		 * Is associative array: values are display names for fields, keys are full fields names (table.field) to be used as sort
- 		 */
- 		protected $opa_sorts;
- 		
- 		/**
  		 * Name of "find" used to defined result context for ResultContext object
  		 * Must be unique for the table and have a corresponding entry in find_navigation.conf
  		 */
@@ -65,16 +59,8 @@
  		public function __construct(&$po_request, &$po_response, $pa_view_paths=null) {
  			parent::__construct($po_request, $po_response, $pa_view_paths);
 			$this->opa_views = array(
-				'list' => _t('list'),
-				'editable' => _t('editable')
+				'list' => _t('list')
 			 );
-			 
-			 $this->opa_sorts = array_merge(array(
-			 	'_natural' => _t('relevance'),
-			 	'ca_object_lot_labels.name_sort' => _t('name'),
-			 	'ca_object_lots.type_id' => _t('type'),
-			 	'ca_object_lots.idno_sort' => _t('idno')
-			 ), $this->opa_sorts);
 			 
 			 $this->opo_browse = new ObjectLotBrowse($this->opo_result_context->getParameter('browse_id'), 'providence');
 		}
@@ -92,15 +78,6 @@
  			return parent::Index($pa_options);
  		}
  		# -------------------------------------------------------
- 		/**
- 		 * Returns string representing the name of the item the search will return
- 		 *
- 		 * If $ps_mode is 'singular' [default] then the singular version of the name is returned, otherwise the plural is returned
- 		 */
- 		public function searchName($ps_mode='singular') {
- 			return ($ps_mode == 'singular') ? _t("lot") : _t("lots");
- 		}
- 		# -------------------------------------------------------
  		# Sidebar info handler
  		# -------------------------------------------------------
  		/**
@@ -111,4 +88,3 @@
  		}
  		# -------------------------------------------------------
  	}
- ?>

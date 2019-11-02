@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2009-2015 Whirl-i-Gig
+ * Copyright 2009-2018 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -32,14 +32,14 @@
 		<script language="JavaScript" type="text/javascript">
 		/* <![CDATA[ */
 			jQuery(document).ready(function(){
-				jQuery('#caCommentsList').caFormatListTable();
+				jQuery('#caItemList').caFormatListTable();
 			});
 		/* ]]> */
 		</script>
 		<div class="sectionBox">
 <?php 
 				print caFormControlBox(
-					'<div class="list-filter">'._t('Filter').': <input type="text" name="filter" value="" onkeyup="$(\'#caCommentsList\').caFilterTable(this.value); return false;" size="20"/></div>', 
+					'<div class="list-filter">'._t('Filter').': <input type="text" name="filter" value="" onkeyup="$(\'#caItemList\').caFilterTable(this.value); return false;" size="20"/></div>', 
 					'', 
 					''
 				); 
@@ -47,14 +47,14 @@
 			<form id="commentListForm"><input type="hidden" name="mode" value="list">
 			
 			<div style="text-align:right;">
-				<?php print _t('Batch actions'); ?>: <a href='#' onclick='jQuery("#commentListForm").attr("action", "<?php print caNavUrl($this->request, 'manage', 'Comments', 'Approve'); ?>").submit();' class='form-button'><span class='form-button approve'><?php print caNavIcon($this->request, __CA_NAV_BUTTON_APPROVE__); ?><span class='formtext'>Approve</span></span></a>
-				<a href='#' onclick='jQuery("#commentListForm").attr("action", "<?php print caNavUrl($this->request, 'manage', 'Comments', 'Delete'); ?>").submit();' class='form-button'><span class='form-button delete'><?php print caNavIcon($this->request, __CA_NAV_BUTTON_DELETE__); ?><span class='formtext'>Delete</span></span></a>
+				<?php print _t('Batch actions'); ?>: <a href='#' onclick='jQuery("#commentListForm").attr("action", "<?php print caNavUrl($this->request, 'manage', 'Comments', 'Approve'); ?>").submit();' class='form-button'><span class='form-button approveDelete'><?php print caNavIcon(__CA_NAV_ICON_APPROVE__, 1); ?><span class='formtext'>Approve</span></span></a>
+				<a href='#' onclick='jQuery("#commentListForm").attr("action", "<?php print caNavUrl($this->request, 'manage', 'Comments', 'Delete'); ?>").submit();' class='form-button'><span class='form-button approveDelete'><?php print caNavIcon(__CA_NAV_ICON_DELETE__, 1); ?><span class='formtext'>Delete</span></span></a>
 			</div>
-			<table id="caCommentsList" class="listtable" width="100%" border="0" cellpadding="0" cellspacing="1">
+			<table id="caItemList" class="listtable">
 				<thead>
 					<tr>
 						<th class="list-header-unsorted">
-							<?php print _t('Author'); ?>
+							<?php print _t('Item'); ?>
 						</th>
 						<th class="list-header-unsorted">
 							<?php print _t('Comment'); ?>
@@ -66,10 +66,10 @@
 							<?php print _t('Rating'); ?>
 						</th>
 						<th class="list-header-unsorted">
-							<?php print _t('Date'); ?>
+							<?php print _t('Author'); ?>
 						</th>
 						<th class="list-header-unsorted">
-							<?php print _t('Commented On'); ?>
+							<?php print _t('Date'); ?>
 						</th>
 						<th class="{sorter: false} list-header-nosort"><?php print _t('Select'); ?></th>
 					</tr>
@@ -80,15 +80,7 @@
 ?>
 					<tr>
 						<td>
-							<div class="caUserCommentsListName">
-<?php 
-							if($va_comment['user_id']){
-								print $va_comment['fname']." ".$va_comment['lname']."<br/>".$va_comment['user_email'];
-							}else{
-								print $va_comment['name']."<br/>".$va_comment['email'];
-							}
-?>
-							</div>
+							<?php print caEditorLink($this->request, $va_comment['commented_on'], '', $va_comment['table_num'], $va_comment['row_id']); ?>
 						</td>
 						<td>
 							<div class="caUserCommentsListComment">
@@ -99,7 +91,7 @@
 <?php
 							if(is_array($va_comment['media1']) && (sizeof($va_comment['media1']) > 0)){
 								print "<span style='white-space: nowrap;'>".$va_comment['media1']['thumbnail']['TAG'];
-								print caNavButton($this->request, __CA_NAV_BUTTON_DOWNLOAD__, _t('Download'), '', 'manage', 'Comments', 'DownloadMedia', array('version' => 'original', 'comment_id' => $va_comment['comment_id'], 'mode' => 'list', 'download' => 1), array(), array('no_background' => true, 'dont_show_content' => true));
+								print caNavButton($this->request, __CA_NAV_ICON_DOWNLOAD__, _t('Download'), '', 'manage', 'Comments', 'DownloadMedia', array('version' => 'original', 'comment_id' => $va_comment['comment_id'], 'mode' => 'list', 'download' => 1), array(), array('no_background' => true, 'dont_show_content' => true));
 								print "</span>";
 							}
 ?>
@@ -108,10 +100,18 @@
 							<?php print ($va_comment['rating']) ? $va_comment['rating'] : "-"; ?>
 						</td>
 						<td>
-							<?php print $va_comment['created_on']; ?>
+							<div class="caUserCommentsListName">
+<?php 
+							if($va_comment['user_id']){
+								print $va_comment['fname']." ".$va_comment['lname']." (".$va_comment['user_email'].")";
+							}else{
+								print $va_comment['name']." (".$va_comment['email'].")";
+							}
+?>
+							</div>
 						</td>
 						<td>
-							<?php print $va_comment['commented_on']; ?>
+							<?php print $va_comment['created_on']; ?>
 						</td>
 						<td>
 							<input type="checkbox" name="comment_id[]" value="<?php print $va_comment['comment_id']; ?>">

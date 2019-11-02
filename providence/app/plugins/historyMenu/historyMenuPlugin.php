@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2009-2013 Whirl-i-Gig
+ * Copyright 2009-2018 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -54,7 +54,7 @@
 		 */
 		public function hookEditItem($pa_params) {
 			if (($pa_params['id'] > 0) && ($o_req = $this->getRequest())) {
-				if (!is_array($va_activity_list = $o_req->session->getVar($pa_params['table_name'].'_history_id_list'))) {
+				if (!is_array($va_activity_list = Session::getVar($pa_params['table_name'].'_history_id_list'))) {
 					$va_activity_list = array();
 				}
 				
@@ -76,8 +76,17 @@
 					'idno' => $pa_params['instance']->get('idno'),
 				);
 				
-				$o_req->session->setVar($pa_params['table_name'].'_history_id_list', $va_activity_list);
+				Session::setVar($pa_params['table_name'].'_history_id_list', $va_activity_list);
 			}
+			return $pa_params;
+		}
+		# -------------------------------------------------------
+		/**
+		 * Record save activity
+		 */
+		public function hookSummarizeItem($pa_params) {
+			$this->hookEditItem($pa_params);
+			
 			return $pa_params;
 		}
 		# -------------------------------------------------------
@@ -95,11 +104,11 @@
 		 */
 		public function hookDeleteItem($pa_params) {
 			if ($o_req = $this->getRequest()) {
-				if (!is_array($va_activity_list = $o_req->session->getVar($pa_params['table_name'].'_history_id_list'))) {
+				if (!is_array($va_activity_list = Session::getVar($pa_params['table_name'].'_history_id_list'))) {
 					$va_activity_list = array();
 				}
 				unset($va_activity_list[$pa_params['id']]);
-				$o_req->session->setVar($pa_params['table_name'].'_history_id_list', $va_activity_list);
+				Session::setVar($pa_params['table_name'].'_history_id_list', $va_activity_list);
 				
 				AppNavigation::clearMenuBarCache($o_req);
 			}
@@ -111,7 +120,6 @@
 		 */
 		public function hookRenderMenuBar($pa_menu_bar) {
 			if ($o_req = $this->getRequest()) {
-				$o_dm = Datamodel::load();
 				$va_activity_lists = array();
 
 				if($this->opo_config instanceof Configuration) {
@@ -123,13 +131,13 @@
 					'ca_collections', 'ca_storage_locations', 'ca_loans', 'ca_movements', 'ca_list_items', 'ca_sets', 'ca_tours', 'ca_tour_stops'
 				) as $vs_table_name) {
 					$va_activity_menu_list = array();
-					if (!is_array($va_activity_list = $o_req->session->getVar($vs_table_name.'_history_id_list'))) {
+					if (!is_array($va_activity_list = Session::getVar($vs_table_name.'_history_id_list'))) {
 						$va_activity_list = array();
 					}
 				
 					if (sizeof($va_activity_list) == 0) { continue; }
 					
-					$t_instance = $o_dm->getInstanceByTableName($vs_table_name, true);
+					$t_instance = Datamodel::getInstanceByTableName($vs_table_name, true);
 					$va_labels = $t_instance->getPreferredDisplayLabelsForIDs(array_keys($va_activity_list));
 					
 					if ($vs_table_name === 'ca_occurrences') {
@@ -137,7 +145,6 @@
 						
 						// Output occurrences grouped by type with types as top-level menu items
 						$va_types = $t_instance->getTypeList();
-						$va_editor_url_info = caEditorUrl($o_req, $vs_table_name, null, true);
 						
 						// sort occurrences by type
 						$va_sorted_by_type_id = array();
@@ -150,6 +157,8 @@
 							$va_activity_menu_list = array();
 							if (isset($va_sorted_by_type_id[$vn_type_id]) && is_array($va_sorted_by_type_id[$vn_type_id])) {
 								foreach($va_sorted_by_type_id[$vn_type_id] as $vn_id => $va_info) {
+									$va_editor_url_info = caEditorUrl($o_req, $vs_table_name, $vn_id, true);
+									
 									$va_activity_menu_list[$vs_table_name.'_'.$vn_type_id.'_'.$vn_id] = array(
 										'default' => $va_editor_url_info,
 										'displayName' => $va_labels[$vn_id].((trim($va_info['idno'])) ? ' ['.$va_info['idno'].']' : ''),
@@ -197,7 +206,7 @@
 						$va_keys = array_reverse(array_keys($va_activity_list));
 						foreach($va_keys as $vn_id) {
 							$va_info = $va_activity_list[$vn_id];
-							$va_editor_url_info = caEditorUrl($o_req, $vs_table_name, null, true);
+							$va_editor_url_info = caEditorUrl($o_req, $vs_table_name, $vn_id, true);
 							$va_activity_menu_list[$vs_table_name.'_'.$vn_id] = array(
 								'default' => $va_editor_url_info,
 								'displayName' => $va_labels[$vn_id].((trim($va_info['idno'])) ? ' ['.$va_info['idno'].']' : ''),
@@ -238,12 +247,4 @@
 			return $pa_menu_bar;
 		}
 		# -------------------------------------------------------
-		/**
-		 * Get plugin user actions
-		 */
-		static public function getRoleActionList() {
-			return array();
-		}
-		# -------------------------------------------------------
 	}
-?>

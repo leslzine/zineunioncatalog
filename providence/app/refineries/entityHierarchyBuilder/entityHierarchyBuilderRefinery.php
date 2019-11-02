@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2013 Whirl-i-Gig
+ * Copyright 2013-2016 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -25,9 +25,9 @@
  *
  * ----------------------------------------------------------------------
  */
- 	require_once(__CA_LIB_DIR__.'/ca/Import/BaseRefinery.php');
- 	require_once(__CA_LIB_DIR__.'/ca/Utils/DataMigrationUtils.php');
-	require_once(__CA_LIB_DIR__.'/core/Parsers/ExpressionParser.php');
+ 	require_once(__CA_LIB_DIR__.'/Import/BaseRefinery.php');
+ 	require_once(__CA_LIB_DIR__.'/Utils/DataMigrationUtils.php');
+	require_once(__CA_LIB_DIR__.'/Parsers/ExpressionParser.php');
 	require_once(__CA_APP_DIR__.'/helpers/importHelpers.php');
  
 	class entityHierarchyBuilderRefinery extends BaseRefinery {
@@ -62,8 +62,7 @@
 			
 			$t_mapping = caGetOption('mapping', $pa_options, null);
 			if ($t_mapping) {
-				$o_dm = Datamodel::load();
-				if ($t_mapping->get('table_num') != $o_dm->getTableNum('ca_entities')) { 
+				if ($t_mapping->get('table_num') != Datamodel::getTableNum('ca_entities')) { 
 					if ($o_log) {
 						$o_log->logError(_t("entityHierarchyBuilder refinery may only be used in imports to ca_entities"));
 					}
@@ -80,7 +79,8 @@
 			
 			// Set entity parents
 			if ($va_parents = $pa_item['settings']['entityHierarchyBuilder_parents']) {
-				$vn_parent_id = caProcessRefineryParents('entityHierarchyBuilderRefinery', 'ca_entities', $va_parents, $pa_source_data, $pa_item, null, $pa_options);
+				$pa_options['refinery'] = $this;
+				$vn_parent_id = caProcessRefineryParents('entityHierarchyBuilder', 'ca_entities', $va_parents, $pa_source_data, $pa_item, null, $pa_options);
 			}
 			
 			return $vn_parent_id;
@@ -98,6 +98,15 @@
 	}
 	
 	BaseRefinery::$s_refinery_settings['entityHierarchyBuilder'] = array(	
+		'entityHierarchyBuilder_matchOn' => array(
+			'formatType' => FT_TEXT,
+			'displayType' => DT_SELECT,
+			'width' => 10, 'height' => 1,
+			'takesLocale' => false,
+			'default' => '',
+			'label' => _t('Match on'),
+			'description' => _t('List indicating sequence of checks for an existing record; values of array can be "preferred_labels" (or "label"), "nonpreferred_labels", "idno" or a metadata element code. Ex. array("idno", "label") will first try to match on idno and then label if the first match fails')
+		),
 		'entityHierarchyBuilder_parents' => array(
 			'formatType' => FT_TEXT,
 			'displayType' => DT_SELECT,
@@ -106,6 +115,14 @@
 			'default' => '',
 			'label' => _t('Parents'),
 			'description' => _t('entity parents to create')
+		),
+		'entityHierarchyBuilder_doNotParse' => array(
+			'formatType' => FT_TEXT,
+			'displayType' => DT_SELECT,
+			'width' => 10, 'height' => 1,
+			'takesLocale' => false,
+			'default' => '',
+			'label' => _t('Do not parse name'),
+			'description' => _t('Take the entity name as is from the data source and insert it without intervention in the surname and display name fields. This is often useful for organization names, especially when using the entity class "org" setting.')
 		)
 	);
-?>

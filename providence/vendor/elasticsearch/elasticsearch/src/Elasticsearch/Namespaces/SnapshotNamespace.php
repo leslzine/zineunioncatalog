@@ -7,9 +7,9 @@ namespace Elasticsearch\Namespaces;
  *
  * @category Elasticsearch
  * @package  Elasticsearch\Namespaces\SnapshotNamespace
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class SnapshotNamespace extends AbstractNamespace
 {
@@ -36,9 +36,8 @@ class SnapshotNamespace extends AbstractNamespace
                  ->setSnapshot($snapshot)
                  ->setParams($params)
                  ->setBody($body);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -62,9 +61,8 @@ class SnapshotNamespace extends AbstractNamespace
         $endpoint->setRepository($repository)
                  ->setBody($body)
                  ->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -87,9 +85,8 @@ class SnapshotNamespace extends AbstractNamespace
         $endpoint->setRepository($repository)
                  ->setSnapshot($snapshot)
                  ->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -111,9 +108,8 @@ class SnapshotNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Snapshot\Repository\Delete');
         $endpoint->setRepository($repository)
                  ->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -136,9 +132,8 @@ class SnapshotNamespace extends AbstractNamespace
         $endpoint->setRepository($repository)
                  ->setSnapshot($snapshot)
                  ->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -160,9 +155,8 @@ class SnapshotNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Snapshot\Repository\Get');
         $endpoint->setRepository($repository)
                  ->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -188,9 +182,8 @@ class SnapshotNamespace extends AbstractNamespace
                  ->setSnapshot($snapshot)
                  ->setParams($params)
                  ->setBody($body);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -213,9 +206,8 @@ class SnapshotNamespace extends AbstractNamespace
         $endpoint->setRepository($repository)
                  ->setSnapshot($snapshot)
                  ->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -237,8 +229,7 @@ class SnapshotNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Snapshot\Repository\Verify');
         $endpoint->setRepository($repository)
                  ->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 }

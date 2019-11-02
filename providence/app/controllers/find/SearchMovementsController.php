@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2010-2013 Whirl-i-Gig
+ * Copyright 2010-2015 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -25,9 +25,9 @@
  *
  * ----------------------------------------------------------------------
  */
- 	require_once(__CA_LIB_DIR__."/ca/BaseSearchController.php");
- 	require_once(__CA_LIB_DIR__."/ca/Search/MovementSearch.php");
- 	require_once(__CA_LIB_DIR__."/ca/Browse/MovementBrowse.php");
+ 	require_once(__CA_LIB_DIR__."/BaseSearchController.php");
+ 	require_once(__CA_LIB_DIR__."/Search/MovementSearch.php");
+ 	require_once(__CA_LIB_DIR__."/Browse/MovementBrowse.php");
  	
  	class SearchMovementsController extends BaseSearchController {
  		# -------------------------------------------------------
@@ -48,12 +48,6 @@
  		protected $opa_views;
  		
  		/**
- 		 * List of available search-result sorting fields
- 		 * Is associative array: values are display names for fields, keys are full fields names (table.field) to be used as sort
- 		 */
- 		protected $opa_sorts;
- 		
- 		/**
  		 * Name of "find" used to defined result context for ResultContext object
  		 * Must be unique for the table and have a corresponding entry in find_navigation.conf
  		 */
@@ -63,16 +57,8 @@
  		public function __construct(&$po_request, &$po_response, $pa_view_paths=null) {
  			parent::__construct($po_request, $po_response, $pa_view_paths);
 			$this->opa_views = array(
-				'list' => _t('list'),
-				'editable' => _t('editable')
+				'list' => _t('list')
 			 );
-			 
-			  $this->opa_sorts = array_merge(array(
-			 	'_natural' => _t('relevance'),
-			 	'ca_movement_labels.name' => _t('short description'),
-			 	'ca_movements.type_id;ca_movement_labels.name' => _t('type'),
-			 	'ca_movements.idno_sort' => _t('idno')
-			 ), $this->opa_sorts);
 			 
 			 $this->opo_browse = new MovementBrowse($this->opo_result_context->getParameter('browse_id'), 'providence');
 		}
@@ -88,15 +74,6 @@
  			return parent::Index($pa_options);
  		}
  		# -------------------------------------------------------
- 		/**
- 		 * Returns string representing the name of the item the search will return
- 		 *
- 		 * If $ps_mode is 'singular' [default] then the singular version of the name is returned, otherwise the plural is returned
- 		 */
- 		public function searchName($ps_mode='singular') {
- 			return ($ps_mode == 'singular') ? _t("movement") : _t("movements");
- 		}
- 		# -------------------------------------------------------
  		# Sidebar info handler
  		# -------------------------------------------------------
  		/**
@@ -107,5 +84,39 @@
  			return parent::Tools($pa_parameters);
  		}
  		# -------------------------------------------------------
+ 		/**
+ 		 *
+ 		 */
+ 		public function _getSubTypeActionNav($pa_item) {
+ 			return [
+				[
+					'displayName' => _t('Search'),
+					"default" => ['module' => 'find', 'controller' => 'SearchMovements', 'action' => 'Index'],
+					'parameters' => array(
+						'type_id' => $pa_item['item_id'],
+						'reset' => $this->request->getUser()->getPreference('persistent_search')
+					),
+					'is_enabled' => true,
+				],
+				[
+					'displayName' => _t('Advanced search'),
+					"default" => ['module' => 'find', 'controller' => 'SearchMovementsAdvanced', 'action' => 'Index'],
+					'useActionInPath' => 1,
+					'parameters' => array(
+						'type_id' => $pa_item['item_id'],
+						'reset' => $this->request->getUser()->getPreference('persistent_search')
+					),
+					'is_enabled' => true,
+				],
+				[
+					'displayName' => _t('Browse'),
+					"default" => ['module' => 'find', 'controller' => 'BrowseMovements', 'action' => 'Index'],
+					'parameters' => array(
+						'type_id' => $pa_item['item_id']
+					),
+					'is_enabled' => true,
+				]
+			];
+ 		}
+ 		# -------------------------------------------------------
  	}
- ?>

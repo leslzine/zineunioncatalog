@@ -30,8 +30,8 @@
  * ----------------------------------------------------------------------
  */
 
-require_once(__CA_LIB_DIR__."/core/Parsers/getid3/getid3.php");
-require_once(__CA_LIB_DIR__."/core/Parsers/OggParser.php");
+require_once(__CA_LIB_DIR__."/Parsers/getid3/getid3.php");
+require_once(__CA_LIB_DIR__."/Parsers/OggParser.php");
 
 # ------------------------------------------------------------------------------------------------
 /**
@@ -44,7 +44,7 @@ function caMediaInfoGuessFileFormat($ps_path) {
 
 	$va_media_metadata = caExtractMetadataWithMediaInfo($ps_path);
 	
-	switch($va_media_metadata['GENERAL']['Format']) {
+	switch($va_media_metadata['VIDEO']['Format']) {
 		case 'DV':
 			return 'video/x-dv';
 		case 'MPEG-4':
@@ -54,6 +54,7 @@ function caMediaInfoGuessFileFormat($ps_path) {
 			return 'video/avi';
 		case 'Matroska':
 			return 'video/x-matroska';
+		// @todo add more popular formats here!
 		default:
 			return false;
 	}

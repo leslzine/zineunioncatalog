@@ -11,20 +11,18 @@ use Elasticsearch\Transport;
  *
  * @category Elasticsearch
  * @package  Elasticsearch\Endpoints
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class Msearch extends AbstractEndpoint
 {
     /**
-     * @param Transport           $transport
      * @param SerializerInterface $serializer
      */
-    public function __construct(Transport $transport, SerializerInterface $serializer)
+    public function __construct(SerializerInterface $serializer)
     {
         $this->serializer = $serializer;
-        parent::__construct($transport);
     }
 
     /**
@@ -55,7 +53,7 @@ class Msearch extends AbstractEndpoint
     /**
      * @return string
      */
-    protected function getURI()
+    public function getURI()
     {
         $index = $this->index;
         $type = $this->type;
@@ -75,10 +73,11 @@ class Msearch extends AbstractEndpoint
     /**
      * @return string[]
      */
-    protected function getParamWhitelist()
+    public function getParamWhitelist()
     {
         return array(
             'search_type',
+            'typed_keys',
         );
     }
 
@@ -86,7 +85,7 @@ class Msearch extends AbstractEndpoint
      * @return array
      * @throws \Elasticsearch\Common\Exceptions\RuntimeException
      */
-    protected function getBody()
+    public function getBody()
     {
         if (isset($this->body) !== true) {
             throw new Exceptions\RuntimeException('Body is required for MSearch');
@@ -98,7 +97,7 @@ class Msearch extends AbstractEndpoint
     /**
      * @return string
      */
-    protected function getMethod()
+    public function getMethod()
     {
         return 'GET';
     }

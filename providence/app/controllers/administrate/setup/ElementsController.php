@@ -30,10 +30,10 @@
 	require_once(__CA_MODELS_DIR__.'/ca_metadata_elements.php');
 	require_once(__CA_MODELS_DIR__.'/ca_metadata_element_labels.php');
 	require_once(__CA_MODELS_DIR__.'/ca_metadata_type_restrictions.php');
-	require_once(__CA_LIB_DIR__.'/ca/Attributes/Attribute.php');
-	require_once(__CA_LIB_DIR__.'/core/Datamodel.php');
-	require_once(__CA_LIB_DIR__.'/ca/BaseEditorController.php');
-	require_once(__CA_LIB_DIR__.'/ca/ResultContext.php');
+	require_once(__CA_LIB_DIR__.'/Attributes/Attribute.php');
+	require_once(__CA_LIB_DIR__.'/Datamodel.php');
+	require_once(__CA_LIB_DIR__.'/BaseEditorController.php');
+	require_once(__CA_LIB_DIR__.'/ResultContext.php');
 
 class ElementsController extends BaseEditorController {
 	# -------------------------------------------------------
@@ -46,7 +46,6 @@ class ElementsController extends BaseEditorController {
 	public function Index() {
 		AssetLoadManager::register('tableList');
 	
-		$vo_dm = Datamodel::load();
 		$va_elements = ca_metadata_elements::getRootElementsAsList(null, null, true, true);
 		$this->view->setVar('element_list',$va_elements);
 		$this->view->setVar('attribute_types', Attribute::getAttributeTypes());
@@ -123,6 +122,9 @@ class ElementsController extends BaseEditorController {
 		$t_element->setMode(ACCESS_WRITE);
 		$va_request = $_REQUEST; /* we don't want to modify $_REQUEST since this may cause ugly side-effects */
 		foreach($t_element->getFormFields() as $vs_f => $va_field_info) {
+			if ((bool)$t_element->getAppConfig()->get('ca_metadata_elements_dont_allow_editing_of_codes_when_in_use') && $t_element->getPrimaryKey()) { continue; }
+			if ((bool)$t_element->getAppConfig()->get('ca_metadata_elements_dont_allow_editing_of_data_types_when_in_use') && $t_element->getPrimaryKey()) { continue; }
+			
 			$t_element->set($vs_f, $_REQUEST[$vs_f]);
 			unset($va_request[$vs_f]);
 			
@@ -322,9 +324,7 @@ class ElementsController extends BaseEditorController {
 					continue;
 				}
 			}
-
-			CompositeCache::delete($t_element->getPrimaryKey(), 'ElementSets');
-			CompositeCache::delete($t_element->getPrimaryKey(), 'ElementSetIds');
+            $t_element->flushCacheForElement();
 		}
 		
 		$this->Edit();

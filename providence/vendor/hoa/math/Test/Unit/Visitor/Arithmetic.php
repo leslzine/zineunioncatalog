@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -49,7 +49,7 @@ use Hoa\Test;
  * Test suite of the hoa://Library/Math/Arithmetic.pp grammar and the
  * Hoa\Math\Visitor\Arithmetic class.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Arithmetic extends Test\Unit\Suite
@@ -58,7 +58,7 @@ class Arithmetic extends Test\Unit\Suite
     {
         $this
             ->given(
-                $sampler  = new Compiler\Llk\Sampler\BoundedExhaustive(
+                $sampler = new Compiler\Llk\Sampler\BoundedExhaustive(
                     Compiler\Llk\Llk::load(
                         new File\Read('hoa://Library/Math/Test/Unit/Arithmetic.pp')
                     ),
@@ -104,9 +104,9 @@ class Arithmetic extends Test\Unit\Suite
     {
         $this
             ->given(
-                $compiler      = Compiler\Llk\Llk::load(new File\Read('hoa://Library/Math/Arithmetic.pp')),
-                $visitor       = new CUT(),
-                $variableName  = 'unknown_variable'
+                $compiler     = Compiler\Llk\Llk::load(new File\Read('hoa://Library/Math/Arithmetic.pp')),
+                $visitor      = new CUT(),
+                $variableName = 'unknown_variable'
             )
             ->then
                 ->object($compiler->parse($variableName . ' * 2'))

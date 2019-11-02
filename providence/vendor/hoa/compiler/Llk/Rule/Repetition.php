@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,12 +36,14 @@
 
 namespace Hoa\Compiler\Llk\Rule;
 
+use Hoa\Compiler;
+
 /**
  * Class \Hoa\Compiler\Llk\Rule\Repetition.
  *
  * The repetition rule.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Repetition extends Rule
@@ -51,32 +53,43 @@ class Repetition extends Rule
      *
      * @var int
      */
-    protected $_min     = 0;
+    protected $_min = 0;
 
     /**
      * Maximum bound.
      *
      * @var int
      */
-    protected $_max     = 0;
+    protected $_max = 0;
 
 
 
     /**
      * Constructor.
      *
-     * @param   string  $name       Name.
-     * @param   int     $min        Minimum bound.
-     * @param   int     $max        Maximum bound.
-     * @param   mixed   $content    Content.
-     * @param   string  $nodeId     Node ID.
-     * @return  void
+     * @param   string  $name        Name.
+     * @param   int     $min         Minimum bound.
+     * @param   int     $max         Maximum bound.
+     * @param   mixed   $children    Children.
+     * @param   string  $nodeId      Node ID.
      */
-    public function __construct($name, $min, $max, $content, $nodeId)
+    public function __construct($name, $min, $max, $children, $nodeId)
     {
-        parent::__construct($name, $content, $nodeId);
-        $this->_min    = $min;
-        $this->_max    = $max;
+        parent::__construct($name, $children, $nodeId);
+
+        $min = max(0, (int) $min);
+        $max = max(-1, (int) $max);
+
+        if (-1 !== $max && $min > $max) {
+            throw new Compiler\Exception\Rule(
+                'Cannot repeat with a min (%d) greater than max (%d).',
+                0,
+                [$min, $max]
+            );
+        }
+
+        $this->_min = $min;
+        $this->_max = $max;
 
         return;
     }
@@ -99,5 +112,15 @@ class Repetition extends Rule
     public function getMax()
     {
         return $this->_max;
+    }
+
+    /**
+     * Check whether the maximum repetition is unbounded.
+     *
+     * @return   bool
+     */
+    public function isInfinite()
+    {
+        return -1 === $this->getMax();
     }
 }

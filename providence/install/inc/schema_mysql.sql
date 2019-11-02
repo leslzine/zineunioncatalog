@@ -41,6 +41,7 @@ create index i_logged on ca_change_log(logged_row_id, logged_table_num);
 create index i_unit_id on ca_change_log(unit_id);
 create index i_table_num on ca_change_log (logged_table_num);
 create index i_batch_id on ca_change_log (batch_id);
+CREATE INDEX i_date_unit on ca_change_log(log_datetime, unit_id); 
 
 
 /*==========================================================================*/
@@ -68,6 +69,7 @@ create table ca_change_log_subjects
 
 create index i_log_id on ca_change_log_subjects(log_id);
 create index i_subject on ca_change_log_subjects(subject_row_id, subject_table_num);
+CREATE INDEX i_log_plus on ca_change_log_subjects (log_id, subject_table_num, subject_row_id);
 
 
 /*==========================================================================*/
@@ -170,6 +172,7 @@ create index i_hier_right on ca_list_items(hier_right);
 create index i_value_text on ca_list_items(item_value);
 create index i_type_id on ca_list_items(type_id);
 create index i_source_id on ca_list_items(source_id);
+create index i_item_filter on ca_list_items(item_id, deleted, access); 
 
 
 /*==========================================================================*/
@@ -268,6 +271,7 @@ create index i_hier_right on ca_entities(hier_right);
 create index i_life_sdatetime on ca_entities(life_sdatetime);
 create index i_life_edatetime on ca_entities(life_edatetime);
 create index i_view_count on ca_entities(view_count);
+create index i_entity_filter on ca_entities(entity_id, deleted, access);
 
 
 /*==========================================================================*/
@@ -428,6 +432,7 @@ create index i_source_id on ca_object_lots(source_id);
 create index i_admin_idno_stub_sort on ca_object_lots(idno_stub_sort);
 create index i_lot_status_id on ca_object_lots(lot_status_id);
 create index i_view_count on ca_object_lots(view_count);
+create index i_lot_filter on ca_object_lots(lot_id, deleted, access); 
 
 
 /*==========================================================================*/
@@ -478,6 +483,7 @@ create index i_original_filename on ca_object_representations(original_filename(
 create index i_rank on ca_object_representations(rank);
 create index i_source_id on ca_object_representations(source_id);
 create index i_view_count on ca_object_representations(view_count);
+create index i_rep_filter on ca_object_representations(representation_id, deleted, access); 
 
 
 /*==========================================================================*/
@@ -597,6 +603,7 @@ create index i_hier_left on ca_occurrences(hier_left);
 create index i_hier_right on ca_occurrences(hier_right);
 create index i_hier_occurrence_id on ca_occurrences(hier_occurrence_id);
 create index i_view_count on ca_occurrences(view_count);
+create index i_occ_filter on ca_occurrences(occurrence_id, deleted, access); 
 
 
 /*==========================================================================*/
@@ -682,6 +689,7 @@ create index i_hier_left on ca_collections(hier_left);
 create index i_hier_right on ca_collections(hier_right);
 create index i_acl_inherit_from_parent on ca_collections(acl_inherit_from_parent);
 create index i_view_count on ca_collections(view_count);
+create index i_collection_filter on ca_collections(collection_id, deleted, access); 
 
 
 /*==========================================================================*/
@@ -742,7 +750,9 @@ create table ca_places
    deleted                        tinyint unsigned               not null default 0,
    hier_left                      decimal(30,20)                 not null,
    hier_right                     decimal(30,20)                 not null,
-   rank                             int unsigned                     not null default 0,
+   rank                           int unsigned                   not null default 0,
+   floorplan                      longblob                       not null,
+   
    primary key (place_id),
    constraint fk_ca_places_source_id foreign key (source_id)
       references ca_list_items (item_id) on delete restrict on update restrict,
@@ -772,6 +782,7 @@ create index i_parent_id on ca_places(parent_id);
 create index i_hier_left on ca_places(hier_left);
 create index i_hier_right on ca_places(hier_right);
 create index i_view_count on ca_places(view_count);
+create index i_place_filter on ca_places(place_id, deleted, access); 
 
 
 /*==========================================================================*/
@@ -848,6 +859,7 @@ create index i_type_id on ca_storage_locations(type_id);
 create index i_hier_left on ca_storage_locations(hier_left);
 create index i_hier_right on ca_storage_locations(hier_right);
 create index i_view_count on ca_storage_locations(view_count);
+create index i_loc_filter on ca_storage_locations(location_id, deleted, access); 
 
 
 /*==========================================================================*/
@@ -929,6 +941,7 @@ create index hier_left on ca_loans(hier_left);
 create index hier_right on ca_loans(hier_right);
 create index hier_loan_id on ca_loans(hier_loan_id);
 create index i_view_count on ca_loans(view_count);
+create index i_loan_filter on ca_loans(loan_id, deleted, access); 
 
 
 /*==========================================================================*/
@@ -994,6 +1007,7 @@ create index i_locale_id on ca_movements(locale_id);
 create index idno on ca_movements(idno);
 create index idno_sort on ca_movements(idno_sort);
 create index i_view_count on ca_movements(view_count);
+create index i_movement_filter on ca_movements(movement_id, deleted, access);
 
 
 /*==========================================================================*/
@@ -1032,7 +1046,9 @@ create table ca_relationship_types
    type_id                        smallint unsigned              not null AUTO_INCREMENT,
    parent_id                      smallint unsigned,
    sub_type_left_id               int unsigned,
+   include_subtypes_left          tinyint unsigned               not null default 0,
    sub_type_right_id              int unsigned,
+   include_subtypes_right         tinyint unsigned               not null default 0,
    hier_left                      decimal(30,20) unsigned        not null,
    hier_right                     decimal(30,20) unsigned        not null,
    hier_type_id                   smallint unsigned,
@@ -1571,12 +1587,15 @@ create table ca_objects
    accession_edatetime            decimal(30,20),
    deaccession_sdatetime          decimal(30,20),
    deaccession_edatetime          decimal(30,20),
+   deaccession_disposal_sdatetime decimal(30,20),
+   deaccession_disposal_edatetime decimal(30,20),
    is_deaccessioned               tinyint                        not null default 0,
    deaccession_notes              text                           not null,
    deaccession_type_id            int unsigned                   null,
    current_loc_class              tinyint unsigned               null,
    current_loc_subclass           int unsigned                   null,
    current_loc_id                 int unsigned                   null,
+   circulation_status_id          int unsigned                   null,
    
    primary key (object_id),
    constraint fk_ca_objects_source_id foreign key (source_id)
@@ -1604,7 +1623,10 @@ create table ca_objects
       references ca_list_items (item_id) on delete restrict on update restrict,
       
    constraint fk_ca_objects_home_location_id foreign key (home_location_id)
-      references ca_storage_locations (location_id) on delete restrict on update restrict
+      references ca_storage_locations (location_id) on delete restrict on update restrict,
+
+   constraint fk_ca_objects_circulation_status_id foreign key (circulation_status_id)
+      references ca_list_items (item_id) on delete restrict on update restrict
 ) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 create index i_parent_id on ca_objects(parent_id);
@@ -1630,12 +1652,15 @@ create index i_accession_sdatetime on ca_objects(accession_sdatetime);
 create index i_accession_edatetime on ca_objects(accession_edatetime);
 create index i_deaccession_sdatetime on ca_objects(deaccession_sdatetime);
 create index i_deaccession_edatetime on ca_objects(deaccession_edatetime);
+create index i_deaccession_disposal_sdatetime on ca_objects(deaccession_disposal_sdatetime);
+create index i_deaccession_disposal_edatetime on ca_objects(deaccession_disposal_edatetime);
 create index i_deaccession_type_id on ca_objects(deaccession_type_id);
 create index i_is_deaccessioned on ca_objects(is_deaccessioned);
 create index i_current_loc_class on ca_objects(current_loc_class);
 create index i_current_loc_subclass on ca_objects(current_loc_subclass);
 create index i_current_loc_id on ca_objects(current_loc_id);
 create index i_view_count on ca_objects(view_count);
+create index i_obj_filter on ca_objects(object_id, deleted, access); 
 
 
 /*==========================================================================*/
@@ -1895,6 +1920,8 @@ create index i_locale_id on ca_attributes(locale_id);
 create index i_row_id on ca_attributes(row_id);
 create index i_table_num on ca_attributes(table_num);
 create index i_element_id on ca_attributes(element_id);
+create index i_row_table_num on ca_attributes(row_id, table_num);
+create index i_prefetch ON ca_attributes(row_id, element_id, table_num);
 
 
 /*==========================================================================*/
@@ -1904,7 +1931,7 @@ create table ca_data_import_events
    occurred_on                    int unsigned                   not null,
    user_id                        int unsigned,
    description                    text                           not null,
-   type_code                      char(10)                       not null,
+   type_code                      char(50)                       not null,
    source                         text                           not null,
    primary key (event_id),
    constraint fk_ca_data_import_events_user_id foreign key (user_id)
@@ -2422,7 +2449,7 @@ create table ca_entity_labels
    forename                       varchar(100)                   not null,
    other_forenames                varchar(100)                   not null,
    middlename                     varchar(100)                   not null,
-   surname                        varchar(100)                   not null,
+   surname                        varchar(512)                   not null,
    prefix                         varchar(100)                   not null,
    suffix                         varchar(100)                   not null,
    name_sort                      varchar(512)                   not null,
@@ -2439,14 +2466,14 @@ create table ca_entity_labels
 
 create index i_entity_id on ca_entity_labels(entity_id);
 create index i_forename on ca_entity_labels(forename);
-create index i_surname on ca_entity_labels(surname);
+create index i_surname on ca_entity_labels(surname(128));
 create unique index u_all on ca_entity_labels
 (
    entity_id,
-   forename,
-   other_forenames,
-   middlename,
-   surname,
+   forename(50),
+   other_forenames(50),
+   middlename(50),
+   surname(50),
    type_id,
    locale_id
 );
@@ -4006,6 +4033,7 @@ create index i_value_longtext2 on ca_attribute_values
    value_longtext2(128)
 );
 create index i_source_info on ca_attribute_values(source_info(255));
+create index i_attr_element on ca_attribute_values(attribute_id, element_id);
 
 
 /*==========================================================================*/
@@ -4359,24 +4387,6 @@ create table ca_editor_ui_type_restrictions (
 
 
 /*==========================================================================*/
-create table ca_editor_ui_bundle_placement_type_restrictions (
-   restriction_id                 int unsigned                   not null AUTO_INCREMENT,
-   table_num                      tinyint unsigned               not null,
-   type_id                        int unsigned,
-   placement_id                   int unsigned                   not null,
-   include_subtypes               tinyint unsigned               not null default 0,
-   settings                       longtext                       not null,
-   rank                           smallint unsigned              not null default 0,
-   primary key (restriction_id),
-   
-   index i_placement_id			(placement_id),
-   index i_type_id				(type_id),
-   constraint fk_ca_editor_ui_bundle_placement_type_restrictions_placement_id foreign key (placement_id)
-      references ca_editor_ui_bundle_placements (placement_id) on delete restrict on update restrict
-) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
-
-
-/*==========================================================================*/
 create table ca_sets (
 	set_id		int unsigned not null auto_increment,
 	parent_id	int unsigned,
@@ -4409,6 +4419,7 @@ create table ca_sets (
    constraint fk_ca_sets_parent_id foreign key (parent_id)
       references ca_sets (set_id) on delete restrict on update restrict
 ) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+create index i_set_filter on ca_sets(set_id, deleted, access); 
 
 
 /*==========================================================================*/
@@ -4434,9 +4445,10 @@ create table ca_set_items (
     type_id     int unsigned not null,
 	rank		int unsigned not null default 0,
 	vars        longtext not null,
+	deleted     tinyint unsigned not null default 0,
 	
 	primary key (item_id),
-	key i_set_id (set_id),
+	key i_set_id (set_id, deleted),
 	key i_type_id (type_id),
 	key i_row_id (row_id),
 	key i_table_num (table_num)
@@ -4547,12 +4559,13 @@ create table ca_items_x_tags (
 	user_id		int unsigned null references ca_users(user_id),
 	access		tinyint unsigned not null default 0,
 	
-	ip_addr		char(39) null,
+	ip_addr		varchar(39) null,
 	
 	created_on	int unsigned not null,
 	
 	moderated_on int unsigned null,
 	moderated_by_user_id int unsigned null references ca_users(user_id),
+    rank int unsigned not null default 0,
 	
 	primary key (relation_id),
 	key i_row_id (row_id),
@@ -4561,7 +4574,8 @@ create table ca_items_x_tags (
 	key i_user_id (user_id),
 	key i_access (access),
 	key i_created_on (created_on),
-	key i_moderated_on (moderated_on)
+	key i_moderated_on (moderated_on),
+	key i_rank (rank)
 ) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 
@@ -4615,6 +4629,24 @@ create table ca_search_form_placements (
 
 
 /*==========================================================================*/
+create table ca_search_form_type_restrictions (
+   restriction_id                 int unsigned                   not null AUTO_INCREMENT,
+   table_num                      tinyint unsigned               not null,
+   type_id                        int unsigned,
+   form_id                        int unsigned                   not null,
+   include_subtypes               tinyint unsigned               not null default 0,
+   settings                       longtext                       not null,
+   rank                           smallint unsigned              not null default 0,
+   primary key (restriction_id),
+   
+   index i_form_id				(form_id),
+   index i_type_id				(type_id),
+   constraint fk_ca_search_form_type_restrictions_form_id foreign key (form_id)
+      references ca_search_forms (form_id) on delete restrict on update restrict
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+
+/*==========================================================================*/
 create table ca_search_forms_x_user_groups (
 	relation_id 	int unsigned not null auto_increment,
 	form_id 		int unsigned not null references ca_search_forms(form_id),
@@ -4649,7 +4681,7 @@ create table ca_search_log (
 	search_expression	varchar(1024) not null,
 	num_hits			int unsigned not null,
 	form_id				int unsigned null references ca_search_forms(form_id),
-	ip_addr				char(15) null,
+	ip_addr				varchar(39) null,
 	details				text not null,
 	execution_time 		decimal(7,3) not null,
 	search_source 		varchar(40) not null,
@@ -4682,14 +4714,16 @@ create table ca_batch_log
 /*==========================================================================*/
 create table ca_batch_log_items 
 (
+  item_id                        int unsigned                   not null AUTO_INCREMENT,
 	batch_id                       int unsigned                   not null,
 	row_id                         int unsigned                   not null,
 	errors                         longtext                       null,
 	
-	primary key (batch_id, row_id), 
-    KEY i_row_id (row_id),
-    constraint fk_ca_batch_log_items_batch_id foreign key (batch_id)
-      references ca_batch_log (batch_id) on delete restrict on update restrict
+	primary key (item_id),
+  KEY i_row_id (row_id),
+  INDEX i_batch_row_id (batch_id, row_id),
+  constraint fk_ca_batch_log_items_batch_id foreign key (batch_id)
+    references ca_batch_log (batch_id) on delete restrict on update restrict
 ) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 
@@ -6258,13 +6292,13 @@ create table ca_sql_search_word_index (
   table_num tinyint(3) unsigned not null,
   row_id int(10) unsigned not null,
   field_table_num tinyint(3) unsigned not null,
-  field_num varchar(20) not null,
+  field_num varchar(100) not null default '',
+  field_container_id int unsigned null,  
   field_row_id int(10) unsigned not null,
   rel_type_id smallint unsigned not null default 0,
   word_id int(10) unsigned not null,
   boost tinyint unsigned not null default 1,
   access tinyint unsigned not null default 1,
-  
   primary key (index_id)
 ) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
 
@@ -6274,7 +6308,11 @@ create index i_field_row_id on ca_sql_search_word_index(field_row_id, field_tabl
 create index i_rel_type_id on ca_sql_search_word_index(rel_type_id);
 create index i_field_table_num on ca_sql_search_word_index(field_table_num);
 create index i_field_num on ca_sql_search_word_index(field_num);
-
+CREATE index i_index_table_num on ca_sql_search_word_index(word_id, table_num, row_id);
+CREATE index i_index_field_table_num on ca_sql_search_word_index(word_id, table_num, field_table_num, row_id);
+CREATE index i_index_field_num on ca_sql_search_word_index(word_id, table_num, field_table_num, field_num, row_id, access, boost);
+CREATE index i_index_delete ON ca_sql_search_word_index(table_num, row_id, field_table_num, field_num);
+CREATE index i_index_field_num_container on ca_sql_search_word_index(word_id, table_num, field_table_num, field_num, field_container_id, row_id, access, boost);
 
 /*==========================================================================*/
 create table ca_sql_search_ngrams (
@@ -6304,9 +6342,28 @@ create table ca_media_replication_status_check (
 /*==========================================================================*/
 create table ca_metadata_dictionary_entries (
    entry_id                 int unsigned					not null AUTO_INCREMENT,
+   table_num                tinyint unsigned not null default 0,
    bundle_name              varchar(255) not null,
    settings                 longtext not null,
-   primary key (entry_id)
+   primary key (entry_id),
+   key i_table_num (table_num),
+   key i_bundle_name (bundle_name)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+
+/*==========================================================================*/
+create table ca_metadata_dictionary_entry_labels (
+	label_id		  int unsigned not null primary key auto_increment,
+	entry_id			  int unsigned null references ca_metadata_dictionary_entries(entry_id),
+	locale_id		  smallint unsigned not null references ca_locales(locale_id),
+	name			    varchar(255) not null,
+	name_sort		  varchar(255) not null,
+	description		text not null,
+	source_info		longtext not null,
+	is_preferred	tinyint unsigned not null,
+
+	KEY i_entry_id (entry_id),
+	KEY i_locale_id (locale_id)
 ) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 
@@ -6645,10 +6702,346 @@ create table ca_search_indexing_queue
   options         LONGTEXT          null,
   is_unindex      tinyint unsigned  not null default 0,
   dependencies    LONGTEXT          null,
+  started_on      int unsigned      null,
 
   primary key (entry_id),
-  index i_table_num_row_id (table_num, row_id)
+  index i_table_num_row_id (table_num, row_id),
+  index i_started_on (started_on)
 ) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_guids
+(
+  guid_id         int unsigned      not null AUTO_INCREMENT,
+  table_num       tinyint unsigned  not null,
+  row_id          int unsigned      not null,
+  guid            VARCHAR(36)       not null,
+
+  primary key (guid_id),
+  index i_table_num_row_id (table_num, row_id),
+  unique index u_guid (guid)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_replication_log
+(
+  entry_id        int unsigned      not null AUTO_INCREMENT,
+  source_system_guid     VARCHAR(36)       not null,
+  log_id          int unsigned      not null,
+  status          char(1)           not null,
+  vars            longtext          null,
+
+  primary key (entry_id),
+  index i_source_log (source_system_guid, log_id)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_user_sorts
+(
+  sort_id         int unsigned      not null AUTO_INCREMENT,
+  table_num       tinyint unsigned  not null,
+  user_id         int unsigned      not null,
+  name            varchar(255)      not null,
+  settings        longtext          not null,
+  sort_type       char(1)           null,
+  rank            smallint unsigned not null default 0,
+  deleted         tinyint unsigned  not null default 0,
+
+  primary key (sort_id),
+  index i_table_num (table_num),
+  index i_user_id (user_id),
+  unique index u_guid (table_num, name),
+
+  constraint fk_ca_user_sorts_user_id foreign key (user_id)
+  references ca_users (user_id) on delete restrict on update restrict
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_user_sort_items
+(
+  item_id         int unsigned      not null AUTO_INCREMENT,
+  sort_id         int unsigned      not null,
+  bundle_name     varchar(255)      not null,
+  rank            smallint unsigned not null default 0,
+
+  primary key (item_id),
+
+  constraint fk_ca_user_sort_items_sort_id foreign key (sort_id)
+  references ca_user_sorts (sort_id) on delete restrict on update restrict
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_metadata_alert_rules (
+  rule_id         int unsigned      not null AUTO_INCREMENT,
+  table_num       tinyint unsigned  not null,
+  code            varchar(20)       not null,
+  settings        longtext          not null,
+  user_id			    int unsigned      null references ca_users(user_id),
+
+  primary key (rule_id),
+  index i_table_num (table_num)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_metadata_alert_rule_labels (
+  label_id		  int unsigned not null primary key auto_increment,
+  rule_id			  int unsigned null references ca_metadata_alert_rules(rule_id),
+  locale_id		  smallint unsigned not null references ca_locales(locale_id),
+  name			    varchar(255) not null,
+  name_sort		  varchar(255) not null,
+  description		text not null,
+  source_info		longtext not null,
+  is_preferred	tinyint unsigned not null,
+
+  KEY i_rule_id (rule_id),
+  KEY i_locale_id (locale_id)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_metadata_alert_triggers (
+  trigger_id      int unsigned      not null AUTO_INCREMENT,
+  rule_id         int unsigned      not null,
+  element_id      smallint unsigned,
+  element_filters text          	not null,
+  settings        longtext          not null,
+  trigger_type    varchar(30)       not null,
+
+  primary key (trigger_id),
+  constraint fk_alert_rules_rule_id foreign key (rule_id)
+    references ca_metadata_alert_rules (rule_id) on delete restrict on update restrict,
+
+  constraint fk_ca_metadata_alert_triggers_element_id foreign key (element_id)
+    references ca_metadata_elements (element_id) on delete restrict on update restrict
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_metadata_alert_rules_x_user_groups (
+  relation_id   int unsigned not null auto_increment,
+  rule_id 		  int unsigned not null references ca_metadata_alert_rules(rule_id),
+  group_id 		  int unsigned not null references ca_user_groups(group_id),
+  access 			  tinyint unsigned not null default 0,
+
+  primary key 				(relation_id),
+  index i_rule_id			(rule_id),
+  index i_group_id		(group_id)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_metadata_alert_rules_x_users (
+  relation_id 	int unsigned not null auto_increment,
+  rule_id 	int unsigned not null references ca_metadata_alert_rules(rule_id),
+  user_id 		int unsigned not null references ca_users(user_id),
+  access 			tinyint unsigned not null default 0,
+
+  primary key 				(relation_id),
+  index i_rule_id			(rule_id),
+  index i_user_id			(user_id)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_metadata_alert_rule_type_restrictions (
+  restriction_id                 int unsigned                   not null AUTO_INCREMENT,
+  type_id                        int unsigned,
+  table_num                      tinyint unsigned               not null,
+  rule_id                        int unsigned                   not null,
+  include_subtypes               tinyint unsigned               not null default 0,
+  settings                       longtext                       not null,
+  rank                           smallint unsigned              not null default 0,
+  primary key (restriction_id),
+
+  index i_rule_id			(rule_id),
+  index i_type_id				(type_id),
+  constraint fk_ca_metadata_alert_rule_type_restrictions_rule_id foreign key (rule_id)
+    references ca_metadata_alert_rules(rule_id) on delete restrict on update restrict
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_notifications (
+  notification_id     int unsigned        not null AUTO_INCREMENT,
+  notification_type   tinyint unsigned    not null default 0,
+  datetime            int unsigned        not null,
+  message             longtext,
+  is_system		      tinyint unsigned    not null default 0,
+  notification_key    char(32)            not null default '',
+  extra_data          longtext            not null,
+
+  primary key (notification_id),
+
+  index i_datetime (datetime),
+  index i_notification_type (notification_type),
+  index i_notification_key (notification_key)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_notification_subjects (
+  subject_id      int unsigned        not null auto_increment,
+  notification_id int unsigned        not null references ca_notifications(notification_id),
+  was_read        tinyint unsigned    not null default 0,
+  read_on         int unsigned        null,
+  table_num       tinyint unsigned    not null,
+  row_id          int unsigned        not null,
+  delivery_email  tinyint unsigned    not null default 0,
+  delivery_email_sent_on int unsigned null,
+  delivery_inbox  tinyint unsigned    not null default 1,
+  
+  primary key (subject_id),
+  index i_notification_id (notification_id),
+  index i_table_num_row_id (table_num, row_id, read_on),
+  index i_delivery_email (delivery_email, delivery_email_sent_on),
+  index i_delivery_inbox (delivery_inbox)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_download_log (
+  log_id		      	int unsigned        not null AUTO_INCREMENT,
+  log_datetime        	int unsigned        not null,
+  user_id             	int unsigned        null,
+  ip_addr			  	varchar(39)			null,
+  table_num    			tinyint unsigned    not null,
+  row_id       			int unsigned        not null,
+  representation_id     int unsigned      	null,
+  download_source		varchar(40)			null,
+
+  primary key (log_id),
+
+  constraint fk_ca_download_log_user_id foreign key (user_id)
+    references ca_users (user_id) on delete restrict on update restrict,
+
+  constraint fk_ca_download_log_representation_id foreign key (representation_id)
+    references ca_object_representations (representation_id) on delete restrict on update restrict,
+
+  index i_table_num_row_id (table_num, row_id),
+  index i_log_datetime (log_datetime)
+
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_site_templates (
+  template_id		    int unsigned        not null AUTO_INCREMENT,
+  title					varchar(255)		not null,
+  description			text				not null,
+  template				longtext			not null, 
+  template_code 		varchar(100)		not null,
+  tags                  longtext            not null,
+  deleted               tinyint unsigned    not null default 0,
+
+  primary key (template_id),
+  unique index u_title (title)
+
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_site_pages (
+  page_id		      	int unsigned        not null  AUTO_INCREMENT,
+  template_id           int unsigned        not null references ca_site_templates(template_id),
+  title					varchar(255)		not null,
+  description			text				not null,
+  path        			varchar(255)        not null,
+  content				longtext			not null,
+  keywords				text				not null,
+  access                tinyint unsigned    not null default 0,
+  deleted               tinyint unsigned    not null default 0,
+  view_count            int unsigned        not null default 0,
+
+  primary key (page_id),
+  key (template_id),
+  key (path)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+/*==========================================================================*/
+
+create table ca_site_page_media (
+  media_id		      	int unsigned        not null  AUTO_INCREMENT,
+  page_id               int unsigned        not null references ca_site_pages(page_id),
+  title					varchar(255)		not null,
+  caption			    text				not null,
+  idno                  varchar(255)        not null,
+  idno_sort             varchar(255)        not null,
+  media        			longblob            not null,
+  media_metadata        longblob            not null,
+  media_content			longtext			not null,
+  md5                   varchar(32)         not null,
+  mimetype              varchar(255)        null,
+  original_filename     varchar(1024)       not null, 
+  rank					int unsigned		not null default 0,
+  access                tinyint unsigned    not null default 0,
+  deleted               tinyint unsigned    not null default 0,
+
+  primary key (media_id),
+  key (page_id),
+  key (rank),
+  key (md5),
+  key (idno),
+  key (idno_sort),
+  unique index u_idno (page_id, idno)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+
+/*==========================================================================*/
+
+create table ca_history_tracking_current_values (
+   tracking_id                    int unsigned                   not null AUTO_INCREMENT,
+   policy                         varchar(50)                    not null,
+   
+   /* Row this history tracking policy current value is bound to (Aka. the "subject") */
+   table_num                      tinyint unsigned               not null,
+   type_id                        int unsigned                   null,
+   row_id                         int unsigned                   not null,
+   
+   /* Row that is current value for this history tracking policy */
+   current_table_num              tinyint unsigned               null,
+   current_type_id                int unsigned                   null,
+   current_row_id                 int unsigned                   null,
+   
+   /* Row that establishes current value. Eg. the relationship that links location (current value) to object (subject) */
+   /* This may be the same as the target. The current value can always be derived from this tracked row. */
+   tracked_table_num              tinyint unsigned               null,
+   tracked_type_id                int unsigned                   null,
+   tracked_row_id                 int unsigned                   null,
+   
+   is_future                      int unsigned                   null,
+   
+   primary key (tracking_id),
+
+   index i_policy			    (policy),
+   index i_row_id				(row_id),
+   
+   /* Only one current value per subject per policy */
+   unique index u_all           (row_id, table_num, policy, type_id), 
+   
+   index i_current              (current_row_id, current_table_num, current_type_id), 
+   index i_tracked              (tracked_row_id, tracked_table_num, tracked_type_id),
+   index i_is_future            (is_future)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+
+/*==========================================================================*/
+create table ca_persistent_cache (
+    cache_key         char(32) not null primary key,
+    cache_value       longblob not null,
+    created_on        int unsigned not null,
+    updated_on        int unsigned not null,
+    namespace         varchar(100) not null default '',
+
+	KEY i_namespace (namespace),
+	KEY i_updated_on (updated_on)
+) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
 
 /*==========================================================================*/
 /* Schema update tracking                                                   */
@@ -6661,5 +7054,4 @@ create table ca_schema_updates (
 ) engine=innodb CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 /* Indicate up to what migration this schema definition covers */
-/* CURRENT MIGRATION: 126 */
-INSERT IGNORE INTO ca_schema_updates (version_num, datetime) VALUES (126, unix_timestamp());
+INSERT IGNORE INTO ca_schema_updates (version_num, datetime) VALUES (158, unix_timestamp());

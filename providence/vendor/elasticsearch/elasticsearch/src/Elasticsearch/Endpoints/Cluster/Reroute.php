@@ -10,9 +10,9 @@ use Elasticsearch\Common\Exceptions;
  *
  * @category Elasticsearch
  * @package  Elasticsearch\Endpoints\Cluster
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class Reroute extends AbstractEndpoint
 {
@@ -36,7 +36,7 @@ class Reroute extends AbstractEndpoint
     /**
      * @return string
      */
-    protected function getURI()
+    public function getURI()
     {
         $uri   = "/_cluster/reroute";
 
@@ -46,7 +46,7 @@ class Reroute extends AbstractEndpoint
     /**
      * @return string[]
      */
-    protected function getParamWhitelist()
+    public function getParamWhitelist()
     {
         return array(
             'dry_run',
@@ -61,7 +61,7 @@ class Reroute extends AbstractEndpoint
     /**
      * @return string
      */
-    protected function getMethod()
+    public function getMethod()
     {
         return 'POST';
     }

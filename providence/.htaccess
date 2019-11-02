@@ -1,14 +1,42 @@
+Options -Indexes
+Order allow,deny
+Allow from all
 
-RewriteEngine on
-RewriteCond %{HTTP_HOST} ^zinecat\.org$ [OR]
-RewriteCond %{HTTP_HOST} ^www\.zinecat\.org$
-RewriteCond %{REQUEST_URI} !^/[0-9]+\..+\.cpaneldcv$
-RewriteCond %{REQUEST_URI} !^/[A-F0-9]{32}\.txt(?:\ Comodo\ DCV)?$
-RewriteRule ^/?$ "http\:\/\/browse\.zinecat\.org\/" [R=301,L]
+<FilesMatch ".*\.[A-Za-z0-9]+">
+	Deny from all
+</FilesMatch>
+<FilesMatch "^(index\.php)?$">
+        Allow from all
+</FilesMatch>
+<FilesMatch "^(index|service|tilepic)\.php$">
+        Allow from all
+</FilesMatch>
+<FilesMatch "^.*\.(css|gif|jpg|png|js|woff|woff2|ttf|swf|map|tif|tiff|m4v|xml|ply|stl|html|json|mp3|wav|aiff|tiff|obj|bmp|mp4|pdf|svg)$">
+        Allow from all
+</FilesMatch>
 
-# php -- BEGIN cPanel-generated handler, do not edit
-# Set the “ea-php70” package as the default “PHP” programming language.
-<IfModule mime_module>
-  AddHandler application/x-httpd-ea-php70___lsphp .php .php7 .phtml
+
+<IfModule mod_rewrite.c>
+	RewriteEngine on
+	
+	<IfModule mod_env.c>
+		SetEnv HTTP_MOD_REWRITE On
+	</IfModule>
+	
+	RewriteRule "(^|/)\.(?!well-known\/)" - [F]
+	
+	# Pass all requests not referring directly 
+	# to files in the filesystem to index.php.
+	RewriteCond %{REQUEST_FILENAME} !-f
+	RewriteCond %{REQUEST_FILENAME} !-d
+	RewriteCond %{REQUEST_URI} !=/favicon.ico
+	RewriteCond %{REQUEST_URI} !=/server-status
+	RewriteCond %{REQUEST_URI} !=/robots.txt
+	RewriteRule ^ index.php%{REQUEST_URI} [L]	
+
+	# Block all TRACE/TRACK requests
+	RewriteCond %{REQUEST_METHOD} ^TRAC[EK]
+	RewriteRule .* - [F]
+
+
 </IfModule>
-# php -- END cPanel-generated handler, do not edit

@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,7 +41,7 @@ namespace Hoa\Stream;
  *
  * Make a multiton of stream contexts.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Context
@@ -65,7 +65,6 @@ class Context
     /**
      * Construct a context.
      *
-     * @return  void
      */
     protected function __construct($id)
     {
@@ -123,7 +122,7 @@ class Context
      * @param   array   $options    Options.
      * @return  bool
      */
-    public function setOptions(Array $options)
+    public function setOptions(array $options)
     {
         return stream_context_set_option($this->getContext(), $options);
     }
@@ -135,7 +134,7 @@ class Context
      * @param   array   $parameters    Parameters.
      * @return  bool
      */
-    public function setParameters(Array $parameters)
+    public function setParameters(array $parameters)
     {
         return stream_context_set_params($this->getContext(), $parameters);
     }

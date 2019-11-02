@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,12 +36,10 @@
 
 namespace Hoa\Math;
 
-use Hoa\Math;
-
 /**
  * Class \Hoa\Math\Context.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Context
@@ -72,7 +70,6 @@ class Context
     /**
      * Initialize constants and functions.
      *
-     * @return  void
      */
     public function __construct()
     {
@@ -94,7 +91,7 @@ class Context
     public function addConstant($name, $value)
     {
         if (true === $this->_constants->offsetExists($name)) {
-            throw new Math\Exception\AlreadyDefinedConstant(
+            throw new Exception\AlreadyDefinedConstant(
                 'Constant %s is already defined.',
                 0,
                 $name
@@ -116,7 +113,7 @@ class Context
     public function getConstant($name)
     {
         if (false === $this->_constants->offsetExists($name)) {
-            throw new Math\Exception\UnknownConstant(
+            throw new Exception\UnknownConstant(
                 'Constant %s does not exist.',
                 1,
                 $name
@@ -148,7 +145,7 @@ class Context
     {
         if (null === $callable) {
             if (false === function_exists($name)) {
-                throw new Math\Exception\UnknownFunction(
+                throw new Exception\UnknownFunction(
                     'Function %s does not exist, cannot add it.',
                     2,
                     $name
@@ -167,13 +164,13 @@ class Context
      * Get a function.
      *
      * @param   string  $name    Function name.
-     * @return  \Hoa\Core\Consistency\Xcallable
+     * @return  \Hoa\Consistency\Xcallable
      * @throws  \Hoa\Math\Exception\UnknownFunction
      */
     public function getFunction($name)
     {
         if (false === $this->_functions->offsetExists($name)) {
-            throw new Math\Exception\UnknownFunction(
+            throw new Exception\UnknownFunction(
                 'Function %s does not exist.',
                 3,
                 $name
@@ -217,7 +214,7 @@ class Context
     public function getVariable($name)
     {
         if (false === $this->_variables->offsetExists($name)) {
-            throw new Math\Exception\UnknownVariable(
+            throw new Exception\UnknownVariable(
                 'Variable %s does not exist.',
                 4,
                 $name
@@ -248,14 +245,24 @@ class Context
 
         if (null === $_constants) {
             $_constants = new \ArrayObject([
-                'PI'      => M_PI,
-                'PI_2'    => M_PI_2,
-                'PI_4'    => M_PI_4,
-                'E'       => M_E,
-                'SQRT_PI' => M_SQRTPI,
-                'SQRT_2'  => M_SQRT2,
-                'SQRT_3'  => M_SQRT3,
-                'LN_PI'   => M_LNPI
+                'PI'               => M_PI,
+                'PI_2'             => M_PI_2,
+                'PI_4'             => M_PI_4,
+                'E'                => M_E,
+                'SQRT_PI'          => M_SQRTPI,
+                'SQRT_2'           => M_SQRT2,
+                'SQRT_3'           => M_SQRT3,
+                'LN_PI'            => M_LNPI,
+                'LOG_2E'           => M_LOG2E,
+                'LOG_10E'          => M_LOG10E,
+                'LN_2'             => M_LN2,
+                'LN_10'            => M_LN10,
+                'ONE_OVER_PI'      => M_1_PI,
+                'TWO_OVER_PI'      => M_2_PI,
+                'TWO_OVER_SQRT_PI' => M_2_SQRTPI,
+                'ONE_OVER_SQRT_2'  => M_SQRT1_2,
+                'EULER'            => M_EULER,
+                'INFINITE'         => INF
             ]);
         }
 
@@ -299,6 +306,7 @@ class Context
                 'min'     => xcallable('min'),
                 'pow'     => xcallable('pow'),
                 'rad2deg' => xcallable('rad2deg'),
+                'round'   => xcallable(function ($value, $precision = 0) { return round($value, $precision); }),
                 'sin'     => xcallable('sin'),
                 'sqrt'    => xcallable('sqrt'),
                 'sum'     => xcallable(function () { return array_sum(func_get_args()); }),

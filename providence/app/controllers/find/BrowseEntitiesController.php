@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2009-2013 Whirl-i-Gig
+ * Copyright 2009-2015 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -26,8 +26,8 @@
  * ----------------------------------------------------------------------
  */
  
- 	require_once(__CA_LIB_DIR__."/ca/BaseBrowseController.php");
- 	require_once(__CA_LIB_DIR__."/ca/Browse/EntityBrowse.php");
+ 	require_once(__CA_LIB_DIR__."/BaseBrowseController.php");
+ 	require_once(__CA_LIB_DIR__."/Browse/EntityBrowse.php");
  
  	class BrowseEntitiesController extends BaseBrowseController {
  		# -------------------------------------------------------
@@ -46,13 +46,6 @@
  		 * Is associative array: keys are view labels, values are view specifier to be incorporated into view name
  		 */ 
  		protected $opa_views;
- 		 
- 		 
- 		/**
- 		 * List of available result sorting fields
- 		 * Is associative array: values are display names for fields, keys are full fields names (table.field) to be used as sort
- 		 */
- 		protected $opa_sorts;
  		
  		/**
  		 * Name of "find" used to defined result context for ResultContext object
@@ -65,26 +58,18 @@
  			parent::__construct($po_request, $po_response, $pa_view_paths);
  			$this->opo_browse = new EntityBrowse($this->opo_result_context->getSearchExpression(), 'providence');
  			
- 			$this->opa_views = array(
-				'list' => _t('list'),
-				'editable' => _t('editable')
-			);
-			 
-			$this->opa_sorts = array_merge(array(
-			 	'ca_entity_labels.displayname' => _t('name'),
-			 	'ca_entities.type_id' => _t('type'),
-			 	'ca_entities.idno_sort' => _t('idno')
-			), $this->opa_sorts);
- 		}
- 		# -------------------------------------------------------
- 		/**
- 		 * Returns string representing the name of the item the browse will return
- 		 *
- 		 * If $ps_mode is 'singular' [default] then the singular version of the name is returned, otherwise the plural is returned
- 		 */
- 		public function browseName($ps_mode='singular') {
- 			return ($ps_mode === 'singular') ? _t('entity') : _t('entities');
- 		}
+ 			if($this->request->config->get('enable_full_thumbnail_result_views_for_ca_entities_browse')){
+				$this->opa_views = array(
+					'list' => _t('list'),
+					'thumbnail' => _t('thumbnails'),
+					'full' => _t('full')
+				);
+			}else{
+				$this->opa_views = array(
+					'list' => _t('list')
+				);
+			}
+ 		}	
  		# -------------------------------------------------------
  		/**
  		 * Returns string representing the name of this controller (minus the "Controller" part)
@@ -94,4 +79,3 @@
  		}
  		# -------------------------------------------------------
  	}
- ?>

@@ -7,9 +7,9 @@ namespace Elasticsearch\Endpoints\Cluster\Nodes;
  *
  * @category Elasticsearch
  * @package  Elasticsearch\Endpoints\Cluster\Nodes
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class Info extends AbstractNodesEndpoint
 {
@@ -39,7 +39,7 @@ class Info extends AbstractNodesEndpoint
     /**
      * @return string
      */
-    protected function getURI()
+    public function getURI()
     {
         $node_id = $this->nodeID;
         $metric = $this->metric;
@@ -59,7 +59,7 @@ class Info extends AbstractNodesEndpoint
     /**
      * @return string[]
      */
-    protected function getParamWhitelist()
+    public function getParamWhitelist()
     {
         return array(
             'flat_settings',
@@ -70,7 +70,7 @@ class Info extends AbstractNodesEndpoint
     /**
      * @return string
      */
-    protected function getMethod()
+    public function getMethod()
     {
         return 'GET';
     }

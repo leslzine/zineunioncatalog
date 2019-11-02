@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2013-2015 Whirl-i-Gig
+ * Copyright 2013-2016 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -25,9 +25,9 @@
  *
  * ----------------------------------------------------------------------
  */
- 	require_once(__CA_LIB_DIR__.'/ca/Import/BaseRefinery.php');
- 	require_once(__CA_LIB_DIR__.'/ca/Utils/DataMigrationUtils.php');
-	require_once(__CA_LIB_DIR__.'/core/Parsers/ExpressionParser.php');
+ 	require_once(__CA_LIB_DIR__.'/Import/BaseRefinery.php');
+ 	require_once(__CA_LIB_DIR__.'/Utils/DataMigrationUtils.php');
+	require_once(__CA_LIB_DIR__.'/Parsers/ExpressionParser.php');
 	require_once(__CA_APP_DIR__.'/helpers/importHelpers.php');
  
 	class collectionSplitterRefinery extends BaseRefinery {
@@ -99,7 +99,7 @@
 				'takesLocale' => false,
 				'default' => '',
 				'label' => _t('Ignore parent when trying to match row'),
-				'description' => _t('gnore parent when trying to match row.')
+				'description' => _t('Ignore parent when trying to match row.')
 			),
 			'collectionSplitter_dontCreate' => array(
 				'formatType' => FT_TEXT,
@@ -190,6 +190,23 @@
 				'default' => '',
 				'label' => _t('Non-preferred labels'),
 				'description' => _t('List of non-preferred labels to apply to collections.')
+			),
+			'collectionSplitter_relationships' => array(
+				'formatType' => FT_TEXT,
+				'displayType' => DT_SELECT,
+				'width' => 10, 'height' => 1,
+				'takesLocale' => false,
+				'default' => '',
+				'label' => _t('Relationships'),
+				'description' => _t('List of relationships to process.')
+			),
+			'collectionSplitter_relatedEntities' => array(
+				'formatType' => FT_TEXT,
+				'displayType' => DT_SELECT,
+				'width' => 10, 'height' => 1,
+				'takesLocale' => false,
+				'default' => '',
+				'label' => _t('Relationships'),
+				'description' => _t('List of entity relationships to process.')
 			)
 		);
-?>

@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2013 Whirl-i-Gig
+ * Copyright 2013-2016 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -25,9 +25,9 @@
  *
  * ----------------------------------------------------------------------
  */
- 	require_once(__CA_LIB_DIR__.'/ca/Import/BaseRefinery.php');
- 	require_once(__CA_LIB_DIR__.'/ca/Utils/DataMigrationUtils.php');
-	require_once(__CA_LIB_DIR__.'/core/Parsers/ExpressionParser.php');
+ 	require_once(__CA_LIB_DIR__.'/Import/BaseRefinery.php');
+ 	require_once(__CA_LIB_DIR__.'/Utils/DataMigrationUtils.php');
+	require_once(__CA_LIB_DIR__.'/Parsers/ExpressionParser.php');
 	require_once(__CA_APP_DIR__.'/helpers/importHelpers.php');
  
 	class listItemHierarchyBuilderRefinery extends BaseRefinery {
@@ -63,8 +63,7 @@
 			
 			$t_mapping = caGetOption('mapping', $pa_options, null);
 			if ($t_mapping) {
-				$o_dm = Datamodel::load();
-				if ($t_mapping->get('table_num') != $o_dm->getTableNum('ca_list_items')) { 
+				if ($t_mapping->get('table_num') != Datamodel::getTableNum('ca_list_items')) { 
 					if ($o_log) {
 						$o_log->logError(_t("listItemHierarchyBuilder refinery may only be used in imports to ca_list_items"));
 					}
@@ -81,7 +80,8 @@
 			
 			// Set list item parents
 			if ($va_parents = $pa_item['settings']['listItemHierarchyBuilder_parents']) {
-				$vn_parent_id = caProcessRefineryParents('listItemHierarchyBuilderRefinery', 'ca_list_items', $va_parents, $pa_source_data, $pa_item, null, array_merge($pa_options, array('list_id' => $pa_item['settings']['listItemHierarchyBuilder_list'])));
+				$pa_options['refinery'] = $this;
+				$vn_parent_id = caProcessRefineryParents('listItemHierarchyBuilder', 'ca_list_items', $va_parents, $pa_source_data, $pa_item, null, array_merge($pa_options, array('list_id' => $pa_item['settings']['listItemHierarchyBuilder_list'])));
 			}
 			
 			return $vn_parent_id;
@@ -95,10 +95,28 @@
 		public function returnsMultipleValues() {
 			return false;
 		}
+		# -------------------------------------------------------	
+		/**
+		 * listItemHierarchyBuilder returns actual row_ids, not idnos
+		 *
+		 * @return bool
+		 */
+		public function returnsRowIDs() {
+			return true;
+		}
 		# -------------------------------------------------------
 	}
 	
-	BaseRefinery::$s_refinery_settings['listItemHierarchyBuilder'] = array(			
+	BaseRefinery::$s_refinery_settings['listItemHierarchyBuilder'] = array(		
+		'listItemHierarchyBuilder_matchOn' => array(
+			'formatType' => FT_TEXT,
+			'displayType' => DT_SELECT,
+			'width' => 10, 'height' => 1,
+			'takesLocale' => false,
+			'default' => '',
+			'label' => _t('Match on'),
+			'description' => _t('List indicating sequence of checks for an existing record; values of array can be "preferred_labels" (or "label"), "nonpreferred_labels", "idno" or a metadata element code. Ex. array("idno", "label") will first try to match on idno and then label if the first match fails')
+		),	
 		'listItemHierarchyBuilder_list' => array(
 			'formatType' => FT_TEXT,
 			'displayType' => DT_SELECT,
@@ -118,4 +136,3 @@
 			'description' => _t('List item parents to create')
 		)
 	);
-?>

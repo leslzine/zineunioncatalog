@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2013-2015 Whirl-i-Gig
+ * Copyright 2013-2016 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -30,15 +30,15 @@ $t_importer 			= $this->getVar('t_importer');
 $va_last_settings 		= $this->getVar('last_settings');
 
 print $vs_control_box = caFormControlBox(
-		caJSButton($this->request, __CA_NAV_BUTTON_SAVE__, _t("Execute data import"), 'caBatchMetadataImportFormButton', array('onclick' => 'caShowConfirmBatchExecutionPanel(); return false;')).' '.
-		caNavButton($this->request, __CA_NAV_BUTTON_CANCEL__, _t("Cancel"), '', 'batch', 'MetadataImport', 'Index', array()),
+		caFormJSButton($this->request, __CA_NAV_ICON_SAVE__, _t("Execute data import"), 'caBatchMetadataImportFormButton', array('onclick' => 'caShowConfirmBatchExecutionPanel(); return false;')).' '.
+		caFormNavButton($this->request, __CA_NAV_ICON_CANCEL__, _t("Cancel"), '', 'batch', 'MetadataImport', 'Index', array()),
 		'', 
 		''
 	);
 ?>
 <div class="sectionBox">
 <?php
-		print caFormTag($this->request, 'ImportData/'.$this->request->getActionExtra(), 'caBatchMetadataImportForm', null, 'POST', 'multipart/form-data', '_top', array('disableUnsavedChangesWarning' => true, 'noTimestamp' => true));
+		print caFormTag($this->request, 'ImportData/'.$this->request->getActionExtra(), 'caBatchMetadataImportForm', null, 'POST', 'multipart/form-data', '_top', array('noCSRFToken' => true, 'disableUnsavedChangesWarning' => true, 'noTimestamp' => true));
 ?>
 		<div class='bundleLabel'>
 			<span class="formLabelText"><?php print _t('Importer'); ?></span> 
@@ -171,7 +171,7 @@ print $vs_control_box = caFormControlBox(
 	});
 	
 	var caDataReaderInfo = <?php print json_encode(ca_data_importers::getInfoForAvailableInputFormats()); ?>;
-	var caImporterInfo = <?php print json_encode(ca_data_importers::getImporters()); ?>;
+	var caImporterInfo = <?php print json_encode(ca_data_importers::getImporters(null, ['dontIncludeWorksheet' => true])); ?>;
 	
 	function caSetBatchMetadataImportFormState(dontAnimate) {
 		var info;

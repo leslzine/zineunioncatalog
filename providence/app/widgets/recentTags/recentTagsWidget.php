@@ -25,11 +25,11 @@
  *
  * ----------------------------------------------------------------------
  */
- 	require_once(__CA_LIB_DIR__.'/ca/BaseWidget.php');
- 	require_once(__CA_LIB_DIR__.'/ca/IWidget.php');
- 	require_once(__CA_LIB_DIR__.'/core/Db.php');
-	require_once(__CA_LIB_DIR__.'/core/Configuration.php');
-	require_once(__CA_LIB_DIR__.'/core/Datamodel.php');
+ 	require_once(__CA_LIB_DIR__.'/BaseWidget.php');
+ 	require_once(__CA_LIB_DIR__.'/IWidget.php');
+ 	require_once(__CA_LIB_DIR__.'/Db.php');
+	require_once(__CA_LIB_DIR__.'/Configuration.php');
+	require_once(__CA_LIB_DIR__.'/Datamodel.php');
 	require_once(__CA_MODELS_DIR__."/ca_item_tags.php");
  
 	class recentTagsWidget extends BaseWidget implements IWidget {
@@ -45,7 +45,6 @@
 			parent::__construct($ps_widget_path, $pa_settings);
 			
 			$this->opo_config = Configuration::load($ps_widget_path.'/conf/recentTags.conf');
-			$this->opo_datamodel = Datamodel::load();
 		}
 		# -------------------------------------------------------
 		/**
@@ -81,17 +80,17 @@
 			$vs_tag_type = "";
 			switch($vn_show_type){
 				case 1:
-					$vs_mode = "moderated";
+					$vs_mode = TRUE;
 					$vs_tag_type = _t("moderated");
 				break;
 				# ---------------------------------------
 				case 0:
-					$vs_mode = "unmoderated";
+					$vs_mode = FALSE;
 					$vs_tag_type = _t("unmoderated");
 				break;
 				# ---------------------------------------
 				default:
-					$vs_mode = "";
+					$vs_mode = NULL;
 					$vs_tag_type = "";
 				break;
 				# ---------------------------------------
@@ -99,7 +98,7 @@
 			$this->opo_view->setVar('tag_type', $vs_tag_type);
 			
 			$t_tags = new ca_item_tags();
-			$va_tags = $t_tags->getTags($vs_mode, $vn_limit);
+			$va_tags = $t_tags->getAllTags($vs_mode, $vn_limit);
 
 			$this->opo_view->setVar('tags_list', $va_tags);
 			$this->opo_view->setVar('request', $this->getRequest());

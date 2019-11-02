@@ -33,7 +33,7 @@
  /**
    *
    */
-require_once(__CA_LIB_DIR__.'/ca/ObjectRelationshipBaseModel.php');
+require_once(__CA_LIB_DIR__.'/ObjectRelationshipBaseModel.php');
 
 
 BaseModel::$s_ca_models_definitions['ca_objects_x_collections'] = array(
@@ -165,7 +165,7 @@ class ca_objects_x_collections extends ObjectRelationshipBaseModel {
 	# Change logging
 	# ------------------------------------------------------
 	protected $UNIT_ID_FIELD = null;
-	protected $LOG_CHANGES_TO_SELF = false;
+	protected $LOG_CHANGES_TO_SELF = true;
 	protected $LOG_CHANGES_USING_AS_SUBJECT = array(
 		"FOREIGN_KEYS" => array(
 			'object_id', 'collection_id'

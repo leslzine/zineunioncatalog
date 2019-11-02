@@ -2,24 +2,33 @@
 
 namespace Elasticsearch;
 
+use Elasticsearch\Common\Exceptions\BadMethodCallException;
 use Elasticsearch\Common\Exceptions\InvalidArgumentException;
+use Elasticsearch\Common\Exceptions\NoNodesAvailableException;
+use Elasticsearch\Common\Exceptions\BadRequest400Exception;
 use Elasticsearch\Common\Exceptions\Missing404Exception;
 use Elasticsearch\Common\Exceptions\TransportException;
+use Elasticsearch\Endpoints\AbstractEndpoint;
+use Elasticsearch\Namespaces\AbstractNamespace;
 use Elasticsearch\Namespaces\CatNamespace;
 use Elasticsearch\Namespaces\ClusterNamespace;
 use Elasticsearch\Namespaces\IndicesNamespace;
+use Elasticsearch\Namespaces\IngestNamespace;
+use Elasticsearch\Namespaces\NamespaceBuilderInterface;
 use Elasticsearch\Namespaces\NodesNamespace;
+use Elasticsearch\Namespaces\RemoteNamespace;
 use Elasticsearch\Namespaces\SnapshotNamespace;
 use Elasticsearch\Namespaces\BooleanRequestWrapper;
+use Elasticsearch\Namespaces\TasksNamespace;
 
 /**
  * Class Client
  *
  * @category Elasticsearch
  * @package  Elasticsearch
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class Client
 {
@@ -58,16 +67,35 @@ class Client
      */
     protected $cat;
 
+    /**
+     * @var IngestNamespace
+     */
+    protected $ingest;
+
+    /**
+     * @var TasksNamespace
+     */
+    protected $tasks;
+
+    /**
+     * @var RemoteNamespace
+     */
+    protected $remote;
+
     /** @var  callback */
     protected $endpoints;
+
+    /** @var  NamespaceBuilderInterface[] */
+    protected $registeredNamespaces = [];
 
     /**
      * Client constructor
      *
      * @param Transport $transport
      * @param callable $endpoint
+     * @param AbstractNamespace[] $registeredNamespaces
      */
-    public function __construct(Transport $transport, callable $endpoint)
+    public function __construct(Transport $transport, callable $endpoint, array $registeredNamespaces)
     {
         $this->transport = $transport;
         $this->endpoints = $endpoint;
@@ -76,6 +104,10 @@ class Client
         $this->nodes     = new NodesNamespace($transport, $endpoint);
         $this->snapshot  = new SnapshotNamespace($transport, $endpoint);
         $this->cat       = new CatNamespace($transport, $endpoint);
+        $this->ingest    = new IngestNamespace($transport, $endpoint);
+        $this->tasks     = new TasksNamespace($transport, $endpoint);
+        $this->remote    = new RemoteNamespace($transport, $endpoint);
+        $this->registeredNamespaces = $registeredNamespaces;
     }
 
     /**
@@ -89,9 +121,9 @@ class Client
 
         /** @var \Elasticsearch\Endpoints\Info $endpoint */
         $endpoint = $endpointBuilder('Info');
-        $response = $endpoint->setParams($params)->performRequest();
+        $endpoint->setParams($params);
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -106,13 +138,15 @@ class Client
 
         /** @var \Elasticsearch\Endpoints\Ping $endpoint */
         $endpoint = $endpointBuilder('Ping');
+        $endpoint->setParams($params);
 
         try {
-            $response = $endpoint->setParams($params)->performRequest();
-            $endpoint->resultOrFuture($response);
+            $this->performRequest($endpoint);
         } catch (Missing404Exception $exception) {
             return false;
         } catch (TransportException $exception) {
+            return false;
+        } catch (NoNodesAvailableException $exception) {
             return false;
         }
 
@@ -141,9 +175,7 @@ class Client
     public function get($params)
     {
         $id = $this->extractArgument($params, 'id');
-
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
 
         /** @var callback $endpointBuilder */
@@ -155,9 +187,8 @@ class Client
                  ->setIndex($index)
                  ->setType($type);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -178,9 +209,7 @@ class Client
     public function getSource($params)
     {
         $id = $this->extractArgument($params, 'id');
-
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
 
         /** @var callback $endpointBuilder */
@@ -193,9 +222,8 @@ class Client
                  ->setType($type)
                  ->returnOnlySource();
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -233,17 +261,44 @@ class Client
                  ->setIndex($index)
                  ->setType($type);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
      *
-     * $params[''] @todo finish the rest of these params
+     * $params['_source'] = (list) True or false to return the _source field or not, or a list of fields to return
+     *        ['_source_exclude'] = (array) A list of fields to exclude from the returned _source field
+     *        ['_source_include'] = (array) A list of fields to extract and return from the _source field
+     *        ['allow_no_indices'] = (bool) Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
+     *        ['analyze_wildcard'] = (bool) Specify whether wildcard and prefix queries should be analyzed (default: false)
+     *        ['analyzer'] = (string) The analyzer to use for the query string
+     *        ['conflicts'] = (enum) What to do when the delete-by-query hits version conflicts?
+     *        ['default_operator'] = (enum) The default operator for query string query (AND or OR)
+     *        ['df'] = (string) The field to use as default where no field prefix is given in the query string
+     *        ['expand_wildcards'] = (enum) Whether to expand wildcard expression to concrete indices that are open, closed or both.
+     *        ['from'] = (number) Starting offset (default: 0)
      *        ['ignore_unavailable'] = (bool) Whether specified concrete indices should be ignored when unavailable (missing or closed)
-     *        ['allow_no_indices']   = (bool) Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
-     *        ['expand_wildcards']   = (enum) Whether to expand wildcard expression to concrete indices that are open, closed or both.
+     *        ['lenient'] = (bool) Specify whether format-based query failures (such as providing text to a numeric field) should be ignored
+     *        ['preference'] = (string) Specify the node or shard the operation should be performed on (default: random)
+     *        ['q'] = (string) Query in the Lucene query string syntax
+     *        ['refresh'] = (bool) Should the effected indexes be refreshed?
+     *        ['request_cache'] = (bool) Specify if request cache should be used for this request or not, defaults to index level setting
+     *        ['requests_per_second'] = (number) The throttle for this request in sub-requests per second. -1 means no throttle.
+     *        ['routing'] = (array) A comma-separated list of specific routing values
+     *        ['scroll'] = (number) Specify how long a consistent view of the index should be maintained for scrolled search
+     *        ['scroll_size'] = (number) Size on the scroll request powering the update_by_query
+     *        ['search_timeout'] = (number) Explicit timeout for each search request. Defaults to no timeout.
+     *        ['search_type'] = (enum) Search operation type
+     *        ['size'] = (number) Number of hits to return (default: 10)
+     *        ['slices'] = (integer) The number of slices this task should be divided into. Defaults to 1 meaning the task isn't sliced into subtasks.
+     *        ['sort'] = (array) A comma-separated list of <field>:<direction> pairs
+     *        ['stats'] = (array) Specific 'tag' of the request for logging and statistical purposes
+     *        ['terminate_after'] = (number) The maximum number of documents to collect for each shard, upon reaching which the query execution will terminate early.
+     *        ['timeout'] = (number) Time each individual bulk request should wait for shards that are unavailable.
+     *        ['version'] = (bool) Specify whether to return document version as part of a hit
+     *        ['wait_for_active_shards'] = (string) Sets the number of shard copies that must be active before proceeding with the delete by query operation. Defaults to 1, meaning the primary shard only. Set to `all` for all shard copies, otherwise set to any non-negative value less than or equal to the total number of copies for the shard (number of replicas + 1)
+     *        ['wait_for_completion'] = (bool) Should the request should block until the delete-by-query is complete.
      *
      * @param array $params
      *
@@ -266,9 +321,8 @@ class Client
                 ->setType($type)
                 ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -290,9 +344,7 @@ class Client
     public function count($params = array())
     {
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
-
         $body = $this->extractArgument($params, 'body');
 
         /** @var callback $endpointBuilder */
@@ -304,9 +356,8 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -327,6 +378,8 @@ class Client
      * @param $params array Associative array of parameters
      *
      * @return array
+     *
+     * @deprecated
      */
     public function countPercolate($params = array())
     {
@@ -345,9 +398,8 @@ class Client
                  ->setID($id)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -359,6 +411,8 @@ class Client
      * @param $params array Associative array of parameters
      *
      * @return array
+     *
+     * @deprecated
      */
     public function percolate($params)
     {
@@ -377,9 +431,8 @@ class Client
                  ->setID($id)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -392,6 +445,8 @@ class Client
      * @param $params array Associative array of parameters
      *
      * @return array
+     *
+     * @deprecated
      */
     public function mpercolate($params = array())
     {
@@ -408,9 +463,8 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -431,7 +485,7 @@ class Client
      *
      * @return array
      */
-    public function termvector($params = array())
+    public function termvectors($params = array())
     {
         $index = $this->extractArgument($params, 'index');
         $type  = $this->extractArgument($params, 'type');
@@ -441,24 +495,15 @@ class Client
         /** @var callback $endpointBuilder */
         $endpointBuilder = $this->endpoints;
 
-        /** @var \Elasticsearch\Endpoints\TermVector $endpoint */
-        $endpoint = $endpointBuilder('TermVector');
+        /** @var \Elasticsearch\Endpoints\TermVectors $endpoint */
+        $endpoint = $endpointBuilder('TermVectors');
         $endpoint->setIndex($index)
                  ->setType($type)
                  ->setID($id)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
-    }
-
-    /**
-     * Redirect to termvector, this is just a naming difference depending on version
-     */
-    public function termvectors($params = array())
-    {
-        return $this->termvector($params);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -495,9 +540,8 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -517,9 +561,7 @@ class Client
     public function exists($params)
     {
         $id = $this->extractArgument($params, 'id');
-
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
 
         //manually make this verbose so we can check status code
@@ -535,61 +577,7 @@ class Client
                  ->setType($type);
         $endpoint->setParams($params);
 
-        return BooleanRequestWrapper::performRequest($endpoint);
-    }
-
-    /**
-     * $params['id']                     = (string) The document ID (Required)
-     *        ['index']                  = (string) The name of the index (Required)
-     *        ['type']                   = (string) The type of the document (use `_all` to fetch the first document matching the ID across all types) (Required)
-     *        ['boost_terms']            = (number) The boost factor
-     *        ['max_doc_freq']           = (number) The word occurrence frequency as count: words with higher occurrence in the corpus will be ignored
-     *        ['max_query_terms']        = (number) The maximum query terms to be included in the generated query
-     *        ['max_word_len']           = (number) The minimum length of the word: longer words will be ignored
-     *        ['min_doc_freq']           = (number) The word occurrence frequency as count: words with lower occurrence in the corpus will be ignored
-     *        ['min_term_freq']          = (number) The term frequency as percent: terms with lower occurrence in the source document will be ignored
-     *        ['min_word_len']           = (number) The minimum length of the word: shorter words will be ignored
-     *        ['mlt_fields']             = (list) Specific fields to perform the query against
-     *        ['percent_terms_to_match'] = (number) How many terms have to match in order to consider the document a match (default: 0.3)
-     *        ['routing']                = (string) Specific routing value
-     *        ['search_from']            = (number) The offset from which to return results
-     *        ['search_indices']         = (list) A comma-separated list of indices to perform the query against (default: the index containing the document)
-     *        ['search_query_hint']      = (string) The search query hint
-     *        ['search_scroll']          = (string) A scroll search request definition
-     *        ['search_size']            = (number) The number of documents to return (default: 10)
-     *        ['search_source']          = (string) A specific search request definition (instead of using the request body)
-     *        ['search_type']            = (string) Specific search type (eg. `dfs_then_fetch`, `count`, etc)
-     *        ['search_types']           = (list) A comma-separated list of types to perform the query against (default: the same type as the document)
-     *        ['stop_words']             = (list) A list of stop words to be ignored
-     *        ['body']                   = (array) A specific search request definition
-     *
-     * @param $params array Associative array of parameters
-     *
-     * @return array
-     */
-    public function mlt($params)
-    {
-        $id = $this->extractArgument($params, 'id');
-
-        $index = $this->extractArgument($params, 'index');
-
-        $type = $this->extractArgument($params, 'type');
-
-        $body = $this->extractArgument($params, 'body');
-
-        /** @var callback $endpointBuilder */
-        $endpointBuilder = $this->endpoints;
-
-        /** @var \Elasticsearch\Endpoints\Mlt $endpoint */
-        $endpoint = $endpointBuilder('Mlt');
-        $endpoint->setID($id)
-                 ->setIndex($index)
-                 ->setType($type)
-                 ->setBody($body);
-        $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
-
-        return $endpoint->resultOrFuture($response);
+        return BooleanRequestWrapper::performRequest($endpoint, $this->transport);
     }
 
     /**
@@ -613,9 +601,7 @@ class Client
     public function mget($params = array())
     {
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
-
         $body = $this->extractArgument($params, 'body');
 
         /** @var callback $endpointBuilder */
@@ -627,9 +613,8 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -645,9 +630,7 @@ class Client
     public function msearch($params = array())
     {
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
-
         $body = $this->extractArgument($params, 'body');
 
         /** @var callback $endpointBuilder */
@@ -659,9 +642,38 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
+    }
+
+    /**
+     * $params['index']       = (list) A comma-separated list of index names to use as default
+     *        ['type']        = (list) A comma-separated list of document types to use as default
+     *        ['search_type'] = (enum) Search operation type
+     *        ['body']        = (array|string) The request definitions (metadata-search request definition pairs), separated by newlines
+     *        ['max_concurrent_searches'] = (number) Controls the maximum number of concurrent searches the multi search api will execute
+     *
+     * @param $params array Associative array of parameters
+     *
+     * @return array
+     */
+    public function msearchTemplate($params = array())
+    {
+        $index = $this->extractArgument($params, 'index');
+        $type = $this->extractArgument($params, 'type');
+        $body = $this->extractArgument($params, 'body');
+
+        /** @var callback $endpointBuilder */
+        $endpointBuilder = $this->endpoints;
+
+        /** @var \Elasticsearch\Endpoints\MsearchTemplate $endpoint */
+        $endpoint = $endpointBuilder('MsearchTemplate');
+        $endpoint->setIndex($index)
+            ->setType($type)
+            ->setBody($body);
+        $endpoint->setParams($params);
+
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -670,7 +682,6 @@ class Client
      *        ['id']           = (string) Specific document ID (when the POST method is used)
      *        ['consistency']  = (enum) Explicit write consistency setting for the operation
      *        ['parent']       = (string) ID of the parent document
-     *        ['percolate']    = (string) Percolator queries to execute while indexing the document
      *        ['refresh']      = (boolean) Refresh the index after performing the operation
      *        ['replication']  = (enum) Specific replication type
      *        ['routing']      = (string) Specific routing value
@@ -688,27 +699,22 @@ class Client
     public function create($params)
     {
         $id = $this->extractArgument($params, 'id');
-
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
-
         $body = $this->extractArgument($params, 'body');
 
         /** @var callback $endpointBuilder */
         $endpointBuilder = $this->endpoints;
 
-        /** @var \Elasticsearch\Endpoints\Index $endpoint */
-        $endpoint = $endpointBuilder('Index');
+        /** @var \Elasticsearch\Endpoints\Create $endpoint */
+        $endpoint = $endpointBuilder('Create');
         $endpoint->setID($id)
                  ->setIndex($index)
                  ->setType($type)
-                 ->setBody($body)
-                 ->createIfAbsent();
+                 ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -717,8 +723,8 @@ class Client
      *        ['consistency'] = (enum) Explicit write consistency setting for the operation
      *        ['refresh']     = (boolean) Refresh the index after performing the operation
      *        ['replication'] = (enum) Explicitly set the replication type
-     *        ['body']        = (string) Default document type for items which don't provide one
      *        ['fields']      = (list) Default comma-separated list of fields to return in the response for updates
+     *        ['body']        = (array) The document
      *
      * @param $params array Associative array of parameters
      *
@@ -727,9 +733,7 @@ class Client
     public function bulk($params = array())
     {
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
-
         $body = $this->extractArgument($params, 'body');
 
         /** @var callback $endpointBuilder */
@@ -741,9 +745,8 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -753,7 +756,6 @@ class Client
      *        ['consistency']  = (enum) Explicit write consistency setting for the operation
      *        ['op_type']      = (enum) Explicit operation type
      *        ['parent']       = (string) ID of the parent document
-     *        ['percolate']    = (string) Percolator queries to execute while indexing the document
      *        ['refresh']      = (boolean) Refresh the index after performing the operation
      *        ['replication']  = (enum) Specific replication type
      *        ['routing']      = (string) Specific routing value
@@ -771,11 +773,8 @@ class Client
     public function index($params)
     {
         $id = $this->extractArgument($params, 'id');
-
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
-
         $body = $this->extractArgument($params, 'body');
 
         /** @var callback $endpointBuilder */
@@ -788,9 +787,34 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
+    }
+
+    /**
+     * $params['refresh']             = (boolean) Should the effected indexes be refreshed?
+     *        ['timeout']             = (time) Time each individual bulk request should wait for shards that are unavailable
+     *        ['consistency']         = (enum) Explicit write consistency setting for the operation
+     *        ['wait_for_completion'] = (boolean) Should the request should block until the reindex is complete
+     *        ['requests_per_second'] = (float) The throttle for this request in sub-requests per second. 0 means set no throttle
+     *        ['body']                = (array) The search definition using the Query DSL and the prototype for the index request (Required)
+     *
+     * @param $params array Associative array of parameters
+     *
+     * @return array
+     */
+    public function reindex($params)
+    {
+        $body = $this->extractArgument($params, 'body');
+
+        /** @var callback $endpointBuilder */
+        $endpointBuilder = $this->endpoints;
+        /** @var \Elasticsearch\Endpoints\Reindex $endpoint */
+        $endpoint = $endpointBuilder('Reindex');
+        $endpoint->setBody($body);
+        $endpoint->setParams($params);
+
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -808,7 +832,6 @@ class Client
     public function suggest($params = array())
     {
         $index = $this->extractArgument($params, 'index');
-
         $body = $this->extractArgument($params, 'body');
 
         /** @var callback $endpointBuilder */
@@ -819,9 +842,8 @@ class Client
         $endpoint->setIndex($index)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -852,11 +874,8 @@ class Client
     public function explain($params)
     {
         $id = $this->extractArgument($params, 'id');
-
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
-
         $body = $this->extractArgument($params, 'body');
 
         /** @var callback $endpointBuilder */
@@ -869,9 +888,8 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -890,6 +908,8 @@ class Client
      *        ['lowercase_expanded_terms'] = (boolean) Specify whether query terms should be lowercased
      *        ['preference']               = (string) Specify the node or shard the operation should be performed on (default: random)
      *        ['q']                        = (string) Query in the Lucene query string syntax
+     *        ['query_cache']              = (boolean) Enable query cache for this request
+     *        ['request_cache']            = (boolean) Enable request cache for this request
      *        ['routing']                  = (list) A comma-separated list of specific routing values
      *        ['scroll']                   = (duration) Specify how long a consistent view of the index should be maintained for scrolled search
      *        ['search_type']              = (enum) Search operation type
@@ -905,6 +925,7 @@ class Client
      *        ['suggest_size']             = (number) How many suggestions to return in response
      *        ['suggest_text']             = (text) The source text for which the suggestions should be returned
      *        ['timeout']                  = (time) Explicit operation timeout
+     *        ['terminate_after']          = (number) The maximum number of documents to collect for each shard, upon reaching which the query execution will terminate early.
      *        ['version']                  = (boolean) Specify whether to return document version as part of a hit
      *        ['body']                     = (array|string) The search definition using the Query DSL
      *
@@ -927,67 +948,8 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
-    }
-
-    /**
-     * $params['index']                    = (list) A comma-separated list of index names to search; use `_all` or empty string to perform the operation on all indices
-     *        ['type']                     = (list) A comma-separated list of document types to search; leave empty to perform the operation on all types
-     *        ['analyzer']                 = (string) The analyzer to use for the query string
-     *        ['analyze_wildcard']         = (boolean) Specify whether wildcard and prefix queries should be analyzed (default: false)
-     *        ['default_operator']         = (enum) The default operator for query string query (AND or OR)
-     *        ['df']                       = (string) The field to use as default where no field prefix is given in the query string
-     *        ['explain']                  = (boolean) Specify whether to return detailed information about score computation as part of a hit
-     *        ['fields']                   = (list) A comma-separated list of fields to return as part of a hit
-     *        ['from']                     = (number) Starting offset (default: 0)
-     *        ['ignore_indices']           = (enum) When performed on multiple indices, allows to ignore `missing` ones
-     *        ['indices_boost']            = (list) Comma-separated list of index boosts
-     *        ['lenient']                  = (boolean) Specify whether format-based query failures (such as providing text to a numeric field) should be ignored
-     *        ['lowercase_expanded_terms'] = (boolean) Specify whether query terms should be lowercased
-     *        ['preference']               = (string) Specify the node or shard the operation should be performed on (default: random)
-     *        ['q']                        = (string) Query in the Lucene query string syntax
-     *        ['routing']                  = (list) A comma-separated list of specific routing values
-     *        ['scroll']                   = (duration) Specify how long a consistent view of the index should be maintained for scrolled search
-     *        ['search_type']              = (enum) Search operation type
-     *        ['size']                     = (number) Number of hits to return (default: 10)
-     *        ['sort']                     = (list) A comma-separated list of <field>:<direction> pairs
-     *        ['source']                   = (string) The URL-encoded request definition using the Query DSL (instead of using request body)
-     *        ['_source']                  = (list) True or false to return the _source field or not, or a list of fields to return
-     *        ['_source_exclude']          = (list) A list of fields to exclude from the returned _source field
-     *        ['_source_include']          = (list) A list of fields to extract and return from the _source field
-     *        ['stats']                    = (list) Specific 'tag' of the request for logging and statistical purposes
-     *        ['suggest_field']            = (string) Specify which field to use for suggestions
-     *        ['suggest_mode']             = (enum) Specify suggest mode
-     *        ['suggest_size']             = (number) How many suggestions to return in response
-     *        ['suggest_text']             = (text) The source text for which the suggestions should be returned
-     *        ['timeout']                  = (time) Explicit operation timeout
-     *        ['version']                  = (boolean) Specify whether to return document version as part of a hit
-     *        ['body']                     = (array|string) The search definition using the Query DSL
-     *
-     * @param $params array Associative array of parameters
-     *
-     * @return array
-     */
-    public function searchExists($params = array())
-    {
-        $index = $this->extractArgument($params, 'index');
-        $type = $this->extractArgument($params, 'type');
-        $body = $this->extractArgument($params, 'body');
-
-        /** @var callback $endpointBuilder */
-        $endpointBuilder = $this->endpoints;
-
-        /** @var \Elasticsearch\Endpoints\SearchExists $endpoint */
-        $endpoint = $endpointBuilder('SearchExists');
-        $endpoint->setIndex($index)
-                 ->setType($type)
-                 ->setBody($body);
-        $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
-
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1017,9 +979,8 @@ class Client
         $endpoint->setIndex($index)
                  ->setType($type);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1045,9 +1006,8 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1062,8 +1022,8 @@ class Client
     public function scroll($params = array())
     {
         $scrollID = $this->extractArgument($params, 'scroll_id');
-
         $body = $this->extractArgument($params, 'body');
+        $scroll = $this->extractArgument($params, 'scroll');
 
         /** @var callback $endpointBuilder */
         $endpointBuilder = $this->endpoints;
@@ -1071,11 +1031,11 @@ class Client
         /** @var \Elasticsearch\Endpoints\Scroll $endpoint */
         $endpoint = $endpointBuilder('Scroll');
         $endpoint->setScrollID($scrollID)
+                 ->setScroll($scroll)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1090,21 +1050,18 @@ class Client
     public function clearScroll($params = array())
     {
         $scrollID = $this->extractArgument($params, 'scroll_id');
-
         $body = $this->extractArgument($params, 'body');
 
         /** @var callback $endpointBuilder */
         $endpointBuilder = $this->endpoints;
 
-        /** @var \Elasticsearch\Endpoints\Scroll $endpoint */
-        $endpoint = $endpointBuilder('Scroll');
+        /** @var \Elasticsearch\Endpoints\ClearScroll $endpoint */
+        $endpoint = $endpointBuilder('ClearScroll');
         $endpoint->setScrollID($scrollID)
-                 ->setBody($body)
-                 ->setClearScroll(true);
+                 ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1115,7 +1072,6 @@ class Client
      *        ['fields']            = (list) A comma-separated list of fields to return in the response
      *        ['lang']              = (string) The script language (default: mvel)
      *        ['parent']            = (string) ID of the parent document
-     *        ['percolate']         = (string) Perform percolation during the operation; use specific registered query name, attribute, or wildcard
      *        ['refresh']           = (boolean) Refresh the index after performing the operation
      *        ['replication']       = (enum) Specific replication type
      *        ['retry_on_conflict'] = (number) Specify how many times should the operation be retried when a conflict occurs (default: 0)
@@ -1134,11 +1090,8 @@ class Client
     public function update($params)
     {
         $id = $this->extractArgument($params, 'id');
-
         $index = $this->extractArgument($params, 'index');
-
         $type = $this->extractArgument($params, 'type');
-
         $body = $this->extractArgument($params, 'body');
 
         /** @var callback $endpointBuilder */
@@ -1151,9 +1104,100 @@ class Client
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
+    }
+
+    /**
+     * $params['index']                    = (list) A comma-separated list of index names to search; use `_all` or
+     * empty string to perform the operation on all indices (Required)
+     *        ['type']                     = (list) A comma-separated list of document types to search; leave empty to
+     * perform the operation on all types
+     *        ['analyzer']                 = (string) The analyzer to use for the query string
+     *        ['analyze_wildcard']         = (boolean) Specify whether wildcard and prefix queries should be analyzed
+     * (default: false)
+     *        ['default_operator']         = (enum) The default operator for query string query (AND or OR) (AND,OR)
+     * (default: OR)
+     *        ['df']                       = (string) The field to use as default where no field prefix is given in the
+     * query string
+     *        ['explain']                  = (boolean) Specify whether to return detailed information about score
+     * computation as part of a hit
+     *        ['fields']                   = (list) A comma-separated list of fields to return as part of a hit
+     *        ['fielddata_fields']         = (list) A comma-separated list of fields to return as the field data
+     * representation of a field for each hit
+     *        ['from']                     = (number) Starting offset (default: 0)
+     *        ['ignore_unavailable']       = (boolean) Whether specified concrete indices should be ignored when
+     * unavailable (missing or closed)
+     *        ['allow_no_indices']         = (boolean) Whether to ignore if a wildcard indices expression resolves into
+     * no concrete indices. (This includes `_all` string or when no indices have been specified)
+     *        ['conflicts']                = (enum) What to do when the reindex hits version conflicts? (abort,proceed)
+     * (default: abort)
+     *        ['expand_wildcards']         = (enum) Whether to expand wildcard expression to concrete indices that are
+     * open, closed or both. (open,closed,none,all) (default: open)
+     *        ['lenient']                  = (boolean) Specify whether format-based query failures (such as providing
+     * text to a numeric field) should be ignored
+     *        ['lowercase_expanded_terms'] = (boolean) Specify whether query terms should be lowercased
+     *        ['preference']               = (string) Specify the node or shard the operation should be performed on
+     * (default: random)
+     *        ['q']                        = (string) Query in the Lucene query string syntax
+     *        ['routing']                  = (list) A comma-separated list of specific routing values
+     *        ['scroll']                   = (duration) Specify how long a consistent view of the index should be
+     * maintained for scrolled search
+     *        ['search_type']              = (enum) Search operation type (query_then_fetch,dfs_query_then_fetch)
+     *        ['search_timeout']           = (time) Explicit timeout for each search request. Defaults to no timeout.
+     *        ['size']                     = (number) Number of hits to return (default: 10)
+     *        ['sort']                     = (list) A comma-separated list of <field>:<direction> pairs
+     *        ['_source']                  = (list) True or false to return the _source field or not, or a list of
+     * fields to return
+     *        ['_source_exclude']          = (list) A list of fields to exclude from the returned _source field
+     *        ['_source_include']          = (list) A list of fields to extract and return from the _source field
+     *        ['terminate_after']          = (number) The maximum number of documents to collect for each shard, upon
+     * reaching which the query execution will terminate early.
+     *        ['stats']                    = (list) Specific 'tag' of the request for logging and statistical purposes
+     *        ['suggest_field']            = (string) Specify which field to use for suggestions
+     *        ['suggest_mode']             = (enum) Specify suggest mode (missing,popular,always) (default: missing)
+     *        ['suggest_size']             = (number) How many suggestions to return in response
+     *        ['suggest_text']             = (text) The source text for which the suggestions should be returned
+     *        ['timeout']                  = (time) Time each individual bulk request should wait for shards that are
+     * unavailable. (default: 1m)
+     *        ['track_scores']             = (boolean) Whether to calculate and return scores even if they are not used
+     * for sorting
+     *        ['version']                  = (boolean) Specify whether to return document version as part of a hit
+     *        ['version_type']             = (boolean) Should the document increment the version number (internal) on
+     * hit or not (reindex)
+     *        ['request_cache']            = (boolean) Specify if request cache should be used for this request or not,
+     * defaults to index level setting
+     *        ['refresh']                  = (boolean) Should the effected indexes be refreshed?
+     *        ['consistency']              = (enum) Explicit write consistency setting for the operation
+     * (one,quorum,all)
+     *        ['scroll_size']              = (integer) Size on the scroll request powering the update_by_query
+     *        ['wait_for_completion']      = (boolean) Should the request should block until the reindex is complete.
+     * (default: false)
+     *        ['body']                     = The search definition using the Query DSL
+     *
+     * @param array $params
+     *
+     * @return array
+     */
+    public function updateByQuery($params = array())
+    {
+        $index = $this->extractArgument($params, 'index');
+
+        $body = $this->extractArgument($params, 'body');
+
+        $type = $this->extractArgument($params, 'type');
+
+        /** @var callback $endpointBuilder */
+        $endpointBuilder = $this->endpoints;
+
+        /** @var \Elasticsearch\Endpoints\UpdateByQuery $endpoint */
+        $endpoint = $endpointBuilder('UpdateByQuery');
+        $endpoint->setIndex($index)
+            ->setType($type)
+            ->setBody($body);
+        $endpoint->setParams($params);
+
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1177,9 +1221,8 @@ class Client
         $endpoint->setID($id)
                  ->setLang($lang);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1203,9 +1246,8 @@ class Client
         $endpoint->setID($id)
                  ->setLang($lang);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1231,9 +1273,8 @@ class Client
                  ->setLang($lang)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1254,9 +1295,8 @@ class Client
         $endpoint = $endpointBuilder('Template\Get');
         $endpoint->setID($id);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1277,9 +1317,8 @@ class Client
         $endpoint = $endpointBuilder('Template\Delete');
         $endpoint->setID($id);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1300,11 +1339,10 @@ class Client
         /** @var \Elasticsearch\Endpoints\Template\Put $endpoint */
         $endpoint = $endpointBuilder('Template\Put');
         $endpoint->setID($id)
-                 ->setBody($body);
-        $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
+            ->setBody($body)
+            ->setParams($params);
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1330,11 +1368,37 @@ class Client
         /** @var \Elasticsearch\Endpoints\FieldStats $endpoint */
         $endpoint = $endpointBuilder('FieldStats');
         $endpoint->setIndex($index)
-            ->setBody($body);
-        $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
+            ->setBody($body)
+            ->setParams($params);
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
+    }
+
+    /**
+     * $params['index']              = (list) A comma-separated list of indices to restrict the results
+     *        ['ignore_unavailable'] = (bool) Whether specified concrete indices should be ignored when unavailable (missing or closed)
+     *        ['allow_no_indices']   = (bool) Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
+     *        ['expand_wildcards']   = (enum) Whether to expand wildcard expression to concrete indices that are open, closed or both.
+     *
+     * @param $params array Associative array of parameters
+     *
+     * @return array
+     */
+    public function fieldCaps($params = array())
+    {
+        $index = $this->extractArgument($params, 'index');
+        $body = $this->extractArgument($params, 'body');
+
+        /** @var callback $endpointBuilder */
+        $endpointBuilder = $this->endpoints;
+
+        /** @var \Elasticsearch\Endpoints\FieldCaps $endpoint */
+        $endpoint = $endpointBuilder('FieldCaps');
+        $endpoint->setIndex($index)
+            ->setBody($body)
+            ->setParams($params);
+
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1357,8 +1421,8 @@ class Client
         $endpoint->setBody($body)
             ->setID($id);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
-        return $endpoint->resultOrFuture($response);
+
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1412,6 +1476,52 @@ class Client
     }
 
     /**
+     * Operate on the Ingest namespace of commands
+     *
+     * @return IngestNamespace
+     */
+    public function ingest()
+    {
+        return $this->ingest;
+    }
+
+    /**
+     * Operate on the Tasks namespace of commands
+     *
+     * @return TasksNamespace
+     */
+    public function tasks()
+    {
+        return $this->tasks;
+    }
+
+    /**
+     * Operate on the Remote namespace of commands
+     *
+     * @return RemoteNamespace
+     */
+    public function remote()
+    {
+        return $this->remote;
+    }
+
+    /**
+     * Catchall for registered namespaces
+     *
+     * @param $name
+     * @param $arguments
+     * @return Object
+     * @throws BadMethodCallException if the namespace cannot be found
+     */
+    public function __call($name, $arguments)
+    {
+        if (isset($this->registeredNamespaces[$name])) {
+            return $this->registeredNamespaces[$name];
+        }
+        throw new BadMethodCallException("Namespace [$name] not found");
+    }
+
+    /**
      * @param array $params
      * @param string $arg
      *
@@ -1423,7 +1533,7 @@ class Client
             $params = (array) $params;
         }
 
-        if (isset($params[$arg]) === true) {
+        if (array_key_exists($arg, $params) === true) {
             $val = $params[$arg];
             unset($params[$arg]);
 
@@ -1433,7 +1543,8 @@ class Client
         }
     }
 
-    private function verifyNotNullOrEmpty($name, $var) {
+    private function verifyNotNullOrEmpty($name, $var)
+    {
         if ($var === null) {
             throw new InvalidArgumentException("$name cannot be null.");
         }
@@ -1449,5 +1560,24 @@ class Client
                 throw new InvalidArgumentException("$name cannot be an array of empty strings");
             }
         }
+    }
+
+    /**
+     * @param $endpoint AbstractEndpoint
+     * 
+     * @throws \Exception
+     * @return array
+     */
+    private function performRequest(AbstractEndpoint $endpoint)
+    {
+        $promise =  $this->transport->performRequest(
+            $endpoint->getMethod(),
+            $endpoint->getURI(),
+            $endpoint->getParams(),
+            $endpoint->getBody(),
+            $endpoint->getOptions()
+        );
+
+        return $this->transport->resultOrFuture($promise, $endpoint->getOptions());
     }
 }
