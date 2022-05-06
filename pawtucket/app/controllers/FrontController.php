@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2013 Whirl-i-Gig
+ * Copyright 2013-2016 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -26,22 +26,19 @@
  * ----------------------------------------------------------------------
  */
  
-	require_once(__CA_LIB_DIR__."/core/ApplicationError.php");
+	require_once(__CA_LIB_DIR__."/ApplicationError.php");
  	require_once(__CA_APP_DIR__.'/helpers/accessHelpers.php');
 	require_once(__CA_MODELS_DIR__."/ca_sets.php");
 	require_once(__CA_MODELS_DIR__."/ca_objects.php");
+	require_once(__CA_LIB_DIR__.'/pawtucket/BasePawtucketController.php');
  
- 	class FrontController extends ActionController {
- 		# -------------------------------------------------------
- 		 
+ 	class FrontController extends BasePawtucketController {
  		# -------------------------------------------------------
  		public function __construct(&$po_request, &$po_response, $pa_view_paths=null) {
  			parent::__construct($po_request, $po_response, $pa_view_paths);
  			$this->config = caGetFrontConfig();
  			caSetPageCSSClasses(array("front"));
-  			if ($this->request->config->get('pawtucket_requires_login')&&!($this->request->isLoggedIn())) {
-                $this->response->setRedirect(caNavUrl($this->request, "", "LoginReg", "LoginForm"));
-            }
+ 			
 			MetaTagManager::setWindowTitle($this->request->config->get("app_display_name"));
  		}
  		# -------------------------------------------------------
@@ -78,7 +75,12 @@
  			#
  			if(sizeof($va_featured_ids) == 0){
  				$t_object = new ca_objects();
- 				$va_featured_ids = array_keys($t_object->getRandomItems(10, array('checkAccess' => $va_access_values, 'hasRepresentations' => 1)));
+ 				if($va_intrinsic_values = $this->config->get("front_page_intrinsic_filter")){
+ 					foreach($va_intrinsic_values as $vs_instrinsic_field => $vs_intrinsic_value){
+ 						$va_intrinsic_restrictions[$vs_instrinsic_field] = $vs_intrinsic_value;
+ 					}
+ 				}
+ 				$va_featured_ids = array_keys($t_object->getRandomItems(10, array('checkAccess' => $va_access_values, 'hasRepresentations' => 1, 'restrictByIntrinsic' => $va_intrinsic_restrictions)));
  				$this->view->setVar('featured_set_item_ids', $va_featured_ids);
 				$this->view->setVar('featured_set_items_as_search_result', caMakeSearchResult('ca_objects', $va_featured_ids));
  			}
@@ -116,4 +118,3 @@
  		}
  		# ------------------------------------------------------
  	}
- ?>

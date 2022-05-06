@@ -34,9 +34,10 @@
    *
    */
 
- 	require_once(__CA_LIB_DIR__."/ca/ApplicationPluginManager.php");
-	require_once(__CA_LIB_DIR__."/ca/WidgetManager.php");
-	require_once(__CA_LIB_DIR__."/core/Datamodel.php");
+require_once(__CA_LIB_DIR__."/ApplicationPluginManager.php");
+require_once(__CA_LIB_DIR__."/WidgetManager.php");
+require_once(__CA_LIB_DIR__."/Datamodel.php");
+require_once(__CA_LIB_DIR__."/SyncableBaseModel.php");
  	
 
 BaseModel::$s_ca_models_definitions['ca_user_roles'] = array(
@@ -100,6 +101,8 @@ BaseModel::$s_ca_models_definitions['ca_user_roles'] = array(
 );
 
 class ca_user_roles extends BaseModel {
+	use SyncableBaseModel;
+	
 	# ---------------------------------
 	# --- Object attribute properties
 	# ---------------------------------
@@ -170,7 +173,7 @@ class ca_user_roles extends BaseModel {
 	# Change logging
 	# ------------------------------------------------------
 	protected $UNIT_ID_FIELD = null;
-	protected $LOG_CHANGES_TO_SELF = false;
+	protected $LOG_CHANGES_TO_SELF = true;
 	protected $LOG_CHANGES_USING_AS_SUBJECT = array(
 		"FOREIGN_KEYS" => array(
 		
@@ -298,7 +301,7 @@ class ca_user_roles extends BaseModel {
 	public function setAccessSettingForBundle($ps_table, $ps_bundle, $pn_access) {
 		if(!in_array($pn_access, array(__CA_BUNDLE_ACCESS_NONE__, __CA_BUNDLE_ACCESS_READONLY__, __CA_BUNDLE_ACCESS_EDIT__))) { return false; }
 		if(!$this->getPrimaryKey()) { return false; }
-		if(!$this->getAppDatamodel()->tableExists($ps_table)) { return false; }
+		if(!Datamodel::tableExists($ps_table)) { return false; }
 
 		$va_vars = $this->get('vars');
 		if(!is_array($va_vars)) { $va_vars = array(); }
@@ -313,6 +316,69 @@ class ca_user_roles extends BaseModel {
 		}
 
 		$va_vars['bundle_access_settings'][$ps_table.".".$ps_bundle] = $pn_access;
+		$this->set('vars', $va_vars);
+
+		$vn_old_mode = $this->getMode();
+		$this->setMode(ACCESS_WRITE);
+		$this->update();
+		$this->setMode($vn_old_mode);
+
+		if($this->numErrors()>0) {
+			return false;
+		}
+
+		return true;
+	}
+	# ------------------------------------------------------
+	public function removeAllBundleAccessSettings() {
+		if(!$this->getPrimaryKey()) { return false; }
+
+		$va_vars = $this->get('vars');
+		if(!is_array($va_vars)) { $va_vars = array(); }
+		$va_vars['bundle_access_settings'] = array();
+
+		$this->set('vars', $va_vars);
+
+		$vn_old_mode = $this->getMode();
+		$this->setMode(ACCESS_WRITE);
+		$this->update();
+		$this->setMode($vn_old_mode);
+
+		if($this->numErrors()>0) {
+			return false;
+		}
+
+		return true;
+	}
+	# ------------------------------------------------------
+	public function removeAllTypeAccessSettings() {
+		if(!$this->getPrimaryKey()) { return false; }
+
+		$va_vars = $this->get('vars');
+		if(!is_array($va_vars)) { $va_vars = array(); }
+		$va_vars['type_access_settings'] = array();
+
+		$this->set('vars', $va_vars);
+
+		$vn_old_mode = $this->getMode();
+		$this->setMode(ACCESS_WRITE);
+		$this->update();
+		$this->setMode($vn_old_mode);
+
+		if($this->numErrors()>0) {
+			return false;
+		}
+
+		return true;
+	}
+	# ------------------------------------------------------
+	public function removeAllSourceAccessSettings() {
+		if(!$this->getPrimaryKey()) { return false; }
+
+		$va_vars = $this->get('vars');
+		if(!is_array($va_vars)) { $va_vars = array(); }
+		$va_vars['source_access_settings'] = array();
+
 		$this->set('vars', $va_vars);
 
 		$vn_old_mode = $this->getMode();
@@ -354,14 +420,13 @@ class ca_user_roles extends BaseModel {
 		if(!in_array($pn_access, array(__CA_BUNDLE_ACCESS_NONE__, __CA_BUNDLE_ACCESS_READONLY__, __CA_BUNDLE_ACCESS_EDIT__))) { return false; }
 		if(!$this->getPrimaryKey()) { return false; }
 		//if(!$this->getAppConfig()->get('perform_type_access_checking')) { return false; }
-		$o_dm = Datamodel::load();
 		$t_list = new ca_lists();	
 
 		$va_vars = $this->get('vars');
 		if(!is_array($va_vars)) { $va_vars = array(); }
 		if(!isset($va_vars['type_access_settings'])) { $va_vars['type_access_settings'] = array(); }
 
-		$t_instance = $o_dm->getInstanceByTableName($ps_table, true);
+		$t_instance = Datamodel::getInstanceByTableName($ps_table, true);
 		if(!$t_instance) { return false; }
 		if(!($vs_list_code = $t_instance->getTypeListCode())) { return false; }
 
@@ -394,11 +459,11 @@ class ca_user_roles extends BaseModel {
 	 */
 	public function getSourceAccessSettings() {
 		if(!$this->getPrimaryKey()) { return array(); }
-		if(!$this->getAppConfig()->get('perform_type_access_checking')) { array(); }
+		if(!$this->getAppConfig()->get('perform_source_access_checking')) { array(); }
 
 		$va_vars = $this->get('vars');
- 		if(isset($va_vars['type_access_settings'])){
- 			return $va_vars['type_access_settings'];
+ 		if(isset($va_vars['source_access_settings'])){
+ 			return $va_vars['source_access_settings'];
  		} else {
  			return array();
  		}
@@ -417,14 +482,13 @@ class ca_user_roles extends BaseModel {
 		if(!in_array($pn_access, array(__CA_BUNDLE_ACCESS_NONE__, __CA_BUNDLE_ACCESS_READONLY__, __CA_BUNDLE_ACCESS_EDIT__))) { return false; }
 		if(!$this->getPrimaryKey()) { return false; }
 		//if(!$this->getAppConfig()->get('perform_source_access_checking')) { return false; }
-		$o_dm = Datamodel::load();
 		$t_list = new ca_lists();	
 
 		$va_vars = $this->get('vars');
 		if(!is_array($va_vars)) { $va_vars = array(); }
 		if(!isset($va_vars['source_access_settings'])) { $va_vars['source_access_settings'] = array(); }
 
-		$t_instance = $o_dm->getInstanceByTableName($ps_table, true);
+		$t_instance = Datamodel::getInstanceByTableName($ps_table, true);
 		if(!$t_instance) { return false; }
 		if(!($vs_list_code = $t_instance->getSourceListCode())) { return false; }
 
@@ -462,7 +526,6 @@ class ca_user_roles extends BaseModel {
 		if (!ca_user_roles::$s_action_list) {
 			$o_config = Configuration::load();
 			$o_actions_config = Configuration::load(__CA_CONF_DIR__.'/user_actions.conf');
-			$vo_datamodel = Datamodel::load();
 			
 			$va_raw_actions = $o_actions_config->getAssoc('user_actions');
 	
@@ -471,8 +534,12 @@ class ca_user_roles extends BaseModel {
 				$va_new_actions = array();
 				if(!is_array($va_group_info["actions"])) { $va_group_info["actions"] = array(); }
 				foreach($va_group_info["actions"] as $vs_action_key => $va_action){
+					if(isset($va_action['requires']) && is_array($va_action['requires']) && !ca_user_roles::_evaluateActionRequirements($va_action['requires'])) {
+						unset($va_raw_actions[$vs_group]["actions"][$vs_action_key]);
+						continue;
+					}
 					if(is_array($va_action["expand_types"]) && strlen($va_action["expand_types"]["table"])>0){
-						$t_instance = $vo_datamodel->getInstanceByTableName($va_action["expand_types"]["table"], true);
+						$t_instance = Datamodel::getInstanceByTableName($va_action["expand_types"]["table"], true);
 						if(method_exists($t_instance, "getTypeList")){
 							$va_type_list = $t_instance->getTypeList();
 							foreach($va_type_list as $vn_type_id => $va_type){
@@ -582,6 +649,58 @@ class ca_user_roles extends BaseModel {
 		}
 		$va_actions = array_flip($va_actions);
 		return array_keys($va_actions);
+	}
+	# -------------------------------------------------------
+	private static function _evaluateActionRequirements($pa_requirements, $pa_options=null) {
+		if(sizeof($pa_requirements) == 0) { return true; }	// empty requirements means show the action
+		$vs_result = $vs_value = null;
+		
+		$o_config = Configuration::load();
+		
+		foreach($pa_requirements as $vs_requirement => $vs_boolean) {
+			$vs_boolean = (strtoupper($vs_boolean) == "AND")  ? "AND" : "OR";
+			
+			$va_tmp = explode(':', $vs_requirement);
+			switch(strtolower($va_tmp[0])) {
+				case 'configuration':
+					$vs_pref = $va_tmp[1];
+					if ($vb_not = (substr($vs_pref, 0, 1) == '!') ? true : false) {
+						$vs_pref = substr($vs_pref, 1);
+					}
+					if (
+						($vb_not && !intval($o_config->get($vs_pref)))
+						||
+						(!$vb_not && intval($o_config->get($vs_pref)))
+					) {
+						$vs_value = true;
+					} else {
+						$vs_value = false;
+					}
+					break;
+				case 'global':
+					if (isset($va_tmp[2])) {
+						$vs_value = ($GLOBALS[$va_tmp[1]] == $va_tmp[2]) ? true : false;
+					} else {
+						$vs_value = $GLOBALS[$va_tmp[1]] ? true : false;
+					}
+					break;
+				default:
+					$vs_value = $vs_value ? true : false;
+					break;
+			}
+			
+			if (is_null($vs_result)) {
+				$vs_result = $vs_value;
+			} else {
+				if ($vs_boolean == "AND") {
+					$vs_result = ($vs_result && $vs_value);
+				} else {
+					$vs_result = ($vs_result || $vs_value);
+				}
+			}
+		}
+		
+		return $vs_result;
 	}
 	# ------------------------------------------------------
 }

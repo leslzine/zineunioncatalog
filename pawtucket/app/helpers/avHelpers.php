@@ -30,8 +30,8 @@
  * ----------------------------------------------------------------------
  */
 
-require_once(__CA_LIB_DIR__."/core/Parsers/getid3/getid3.php");
-require_once(__CA_LIB_DIR__."/core/Parsers/OggParser.php");
+require_once(__CA_LIB_DIR__."/Parsers/getid3/getid3.php");
+require_once(__CA_LIB_DIR__."/Parsers/OggParser.php");
 
 # ------------------------------------------------------------------------------------------------
 /**
@@ -48,13 +48,12 @@ function caMediaInfoGuessFileFormat($ps_path) {
 		case 'DV':
 			return 'video/x-dv';
 		case 'MPEG-4':
+		case 'AVC':
 			return 'video/mp4';
 		case 'AVI':
 			return 'video/avi';
 		case 'Matroska':
 			return 'video/x-matroska';
-		case 'AVC':
-			return 'video/quicktime';
 		// @todo add more popular formats here!
 		default:
 			return false;

@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,9 +41,9 @@ use Hoa\Compiler;
 /**
  * Class \Hoa\Compiler\Llk\Lexer.
  *
- * PP lexer.
+ * Lexical analyser, i.e. split a string into a set of lexeme, i.e. tokens.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Lexer
@@ -53,30 +53,51 @@ class Lexer
      *
      * @var array
      */
-    protected $_lexerState = null;
+    protected $_lexerState  = null;
 
     /**
      * Text.
      *
      * @var string
      */
-    protected $_text       = null;
+    protected $_text        = null;
 
     /**
      * Tokens.
      *
      * @var array
      */
-    protected $_tokens     = [];
+    protected $_tokens      = [];
 
     /**
      * Namespace stacks.
      *
      * @var \SplStack
      */
-    protected $_nsStack    = null;
+    protected $_nsStack     = null;
+
+    /**
+     * PCRE options.
+     *
+     * @var string
+     */
+    protected $_pcreOptions = null;
 
 
+
+    /**
+     * Constructor.
+     *
+     * @param   array  $pragmas    Pragmas.
+     */
+    public function __construct(array $pragmas = [])
+    {
+        if (!isset($pragmas['lexer.unicode']) || true === $pragmas['lexer.unicode']) {
+            $this->_pcreOptions .= 'u';
+        }
+
+        return;
+    }
 
     /**
      * Text tokenizer: splits the text in parameter in an ordered array of
@@ -84,17 +105,16 @@ class Lexer
      *
      * @param   string  $text      Text to tokenize.
      * @param   array   $tokens    Tokens to be returned.
-     * @return  array
+     * @return  \Generator
      * @throws  \Hoa\Compiler\Exception\UnrecognizedToken
      */
-    public function lexMe($text, Array $tokens)
+    public function lexMe($text, array $tokens)
     {
         $this->_text       = $text;
         $this->_tokens     = $tokens;
         $this->_nsStack    = null;
         $offset            = 0;
         $maxOffset         = strlen($this->_text);
-        $tokenized         = [];
         $this->_lexerState = 'default';
         $stack             = false;
 
@@ -144,13 +164,13 @@ class Lexer
 
             if (true === $nextToken['keep']) {
                 $nextToken['offset'] = $offset;
-                $tokenized[]         = $nextToken;
+                yield $nextToken;
             }
 
             $offset += strlen($nextToken['value']);
         }
 
-        $tokenized[] = [
+        yield [
             'token'     => 'EOF',
             'value'     => 'EOF',
             'length'    => 0,
@@ -158,8 +178,6 @@ class Lexer
             'keep'      => true,
             'offset'    => $offset
         ];
-
-        return $tokenized;
     }
 
     /**
@@ -196,7 +214,7 @@ class Lexer
                         if ($i > ($c = count($this->_nsStack))) {
                             throw new Compiler\Exception\Lexer(
                                 'Cannot shift namespace %d-times, from token ' .
-                                '%s in namespace %s,  because the stack ' .
+                                '%s in namespace %s, because the stack ' .
                                 'contains only %d namespaces.',
                                 1,
                                 [
@@ -256,7 +274,7 @@ class Lexer
     {
         $_regex = str_replace('#', '\#', $regex);
         $preg   = preg_match(
-            '#\G(?|' . $_regex . ')#u',
+            '#\G(?|' . $_regex . ')#' . $this->_pcreOptions,
             $this->_text,
             $matches,
             0,

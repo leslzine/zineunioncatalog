@@ -13,6 +13,11 @@ use Elasticsearch\ClientBuilder;
  */
 class SniffingConnectionPoolIntegrationTest extends \PHPUnit_Framework_TestCase
 {
+    protected function setUp()
+    {
+        static::markTestSkipped("All of Sniffing unit tests use outdated cluster state format, need to redo");
+    }
+
     public function testSniff()
     {
         $client = ClientBuilder::create()
@@ -20,6 +25,7 @@ class SniffingConnectionPoolIntegrationTest extends \PHPUnit_Framework_TestCase
             ->setConnectionPool('\Elasticsearch\ConnectionPool\SniffingConnectionPool', ['sniffingInterval' => -10])
             ->build();
 
-        $client->ping();
+        $pinged = $client->ping();
+        $this->assertTrue($pinged);
     }
 }

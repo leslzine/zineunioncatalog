@@ -1,25 +1,50 @@
-#
-# Apache/PHP/Drupal settings:
-#
+Options -Indexes
+Order allow,deny
+Allow from all
 
-AuthType Basic
-AuthName "Halt! Who goes there? Wrong turn!"
-AuthUserFile "/opt/htpasswds/weblockout"
+<FilesMatch ".*\.[A-Za-z0-9]+">
+	Deny from all
+</FilesMatch>
+<FilesMatch "^(index\.php)?$">
+        Allow from all
+</FilesMatch>
+<FilesMatch "^(index|service|tilepic)\.php$">
+        Allow from all
+</FilesMatch>
+<FilesMatch "^.*\.(css|gif|jpg|png|js|woff|woff2|ttf|swf|map|tif|tiff|m4v|xml|ply|stl|html|json|mp3|wav|aiff|tiff|obj|bmp|mp4|pdf|svg)$">
+        Allow from all
+</FilesMatch>
+#Header set Content-Security-Policy "default-src 'self' stats.zinecat.org;"
 
-# Allow any valid user
-<RequireAny>
-    <RequireAll>
-            # this example is using the alternate matching form here so we don't have
-            # to escape the /'s in the URL.
-            Require expr %{REQUEST_URI} =~ m#^/.well-known/.*#
-   </RequireAll>
-   Require valid-user
- </RequireAny>
 
-#Require valid-user
+<ifModule mod_headers.c>
+Header set Content-Security-Policy "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval';"
+</ifModule>
+<IfModule mod_rewrite.c>
+	RewriteEngine on
+	
+	<IfModule mod_env.c>
+		SetEnv HTTP_MOD_REWRITE On
+	</IfModule>
+	
+    RewriteRule ^archives /About/archives [R,L]
+    RewriteRule ^oralhistory /Listing/oralhistory [R,L]
+    RewriteRule ^specialcollections /Collections/index [R,L]
 
-# Show directory listings for URLs which map to a directory.
-Options +Indexes
+	RewriteRule "(^|/)\.(?!well-known\/)" - [F]
+	
+	# Pass all requests not referring directly 
+	# to files in the filesystem to index.php.
+	RewriteCond %{REQUEST_FILENAME} !-f
+	RewriteCond %{REQUEST_FILENAME} !-d
+	RewriteCond %{REQUEST_URI} !=/favicon.ico
+	RewriteCond %{REQUEST_URI} !=/server-status
+	RewriteCond %{REQUEST_URI} !=/robots.txt
+	RewriteRule ^ index.php%{REQUEST_URI} [L]	
 
-# Display details
-IndexOptions +FancyIndexing
+	# Block all TRACE/TRACK requests
+	RewriteCond %{REQUEST_METHOD} ^TRAC[EK]
+	RewriteRule .* - [F]
+
+
+</IfModule>

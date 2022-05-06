@@ -35,6 +35,7 @@
    */
 
 require_once(__CA_APP_DIR__.'/models/ca_user_roles.php');
+require_once(__CA_LIB_DIR__."/SyncableBaseModel.php");
 
 
 BaseModel::$s_ca_models_definitions['ca_user_groups'] = array(
@@ -68,7 +69,7 @@ BaseModel::$s_ca_models_definitions['ca_user_groups'] = array(
 				'DISPLAY_WIDTH' => 10, 'DISPLAY_HEIGHT' => 1,
 				'IS_NULL' => false, 
 				'DEFAULT' => '',
-				'LABEL' => _t('Code'), 'DESCRIPTION' => _t('Short code (up to 8 characters) for group (must be unique)'),
+				'LABEL' => _t('Code'), 'DESCRIPTION' => _t('Short code identifying group. Can use used by users in <em>Pawtucket</em> to join this group.'),
 				'BOUNDS_LENGTH' => array(1,20)
 		),
 		'description' => array(
@@ -121,6 +122,8 @@ BaseModel::$s_ca_models_definitions['ca_user_groups'] = array(
 );
 
 class ca_user_groups extends BaseModel {
+	use SyncableBaseModel;
+	
 	# ---------------------------------
 	# --- Object attribute properties
 	# ---------------------------------
@@ -190,7 +193,7 @@ class ca_user_groups extends BaseModel {
 	# Change logging
 	# ------------------------------------------------------
 	protected $UNIT_ID_FIELD = null;
-	protected $LOG_CHANGES_TO_SELF = false;
+	protected $LOG_CHANGES_TO_SELF = true;
 	protected $LOG_CHANGES_USING_AS_SUBJECT = array(
 		"FOREIGN_KEYS" => array(
 		
@@ -226,6 +229,27 @@ class ca_user_groups extends BaseModel {
 	# ------------------------------------------------------
 	public function __construct($pn_id=null) {
 		parent::__construct($pn_id);	# call superclass constructor
+	}
+	# ------------------------------------------------------
+	/**
+	 * Override insert to set code field
+	 */
+	public function insert($options=null) {
+		if (!$this->get('code')) {
+			do {
+				$code = caGenerateRandomPassword(6, ['uppercase' => true]);
+				$this->set('code', $code); 
+			} while(self::find(['code' => $code], ['returnAs' => 'count']) > 0);
+		}
+		return parent::insert($options);
+	}
+	# ------------------------------------------------------
+	/**
+	 * Override update to set code field
+	 */
+	public function update($options=null) {
+		if (!$this->get('code')) { $this->set('code', caGenerateRandomPassword(6, ['uppercase' => true])); }
+		return parent::update($options);
 	}
 	# ------------------------------------------------------
 	/**
@@ -347,13 +371,14 @@ class ca_user_groups extends BaseModel {
 		if (!is_array($pm_roles)) {
 			$pm_roles = array($pm_roles);
 		}
+
+		require_once(__CA_APP_DIR__.'/models/ca_groups_x_roles.php');
 		
 		if ($pn_group_id = $this->getPrimaryKey()) {
 			$t_role = new ca_user_roles();
 			
 			$vn_roles_added = 0;
-			
-			$o_db = $this->getDb();
+
 			foreach ($pm_roles as $vs_role) {
 				$vs_role = trim(preg_replace('![\n\r\t]+!', '', $vs_role));
 				$vb_got_role = 0;
@@ -365,22 +390,19 @@ class ca_user_groups extends BaseModel {
 						if (!$t_role->load(array("name" => $vs_role))) {
 							continue;
 						}
-						
 					}
-					$vb_got_role = 1;
 				}
-					
-				$o_db->query("
-					INSERT INTO ca_groups_x_roles 
-					(group_id, role_id)
-					VALUES
-					(?, ?)
-				", (int)$pn_group_id, (int)$t_role->getPrimaryKey());
+
+				$t_gxr = new ca_groups_x_roles();
+				$t_gxr->set('group_id', $pn_group_id);
+				$t_gxr->set('role_id', $t_role->getPrimaryKey());
+				$t_gxr->setMode(ACCESS_WRITE);
+				$t_gxr->insert();
 				
-				if ($o_db->numErrors() == 0) {
+				if ($t_gxr->numErrors() == 0) {
 					$vn_roles_added++;
 				} else {
-					$this->postError(930, _t("Database error adding role '%1': %2", $vs_role, join(';', $o_db->getErrors())),"ca_user_groups->addRoles()");
+					$this->postError(930, _t("Database error adding role '%1': %2", $vs_role, join(';', $t_gxr->getErrors())),"ca_user_groups->addRoles()");
 				}
 			}
 			return $vn_roles_added;
@@ -753,4 +775,3 @@ class ca_user_groups extends BaseModel {
 	}
 	# ----------------------------------------
 }
-?>

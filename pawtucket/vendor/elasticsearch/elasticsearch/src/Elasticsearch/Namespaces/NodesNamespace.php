@@ -7,9 +7,9 @@ namespace Elasticsearch\Namespaces;
  *
  * @category Elasticsearch
  * @package  Elasticsearch\Namespaces\NodesNamespace
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class NodesNamespace extends AbstractNamespace
 {
@@ -51,9 +51,8 @@ class NodesNamespace extends AbstractNamespace
                  ->setMetric($metric)
                  ->setIndexMetric($index_metric)
                  ->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -79,9 +78,8 @@ class NodesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Cluster\Nodes\Info');
         $endpoint->setNodeID($nodeID)->setMetric($metric);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -106,9 +104,8 @@ class NodesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Cluster\Nodes\HotThreads');
         $endpoint->setNodeID($nodeID);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -131,8 +128,7 @@ class NodesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Cluster\Nodes\Shutdown');
         $endpoint->setNodeID($nodeID);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 }

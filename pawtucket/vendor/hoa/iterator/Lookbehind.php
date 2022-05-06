@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,17 +41,15 @@ namespace Hoa\Iterator;
  *
  * Look behind iterator.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
-class          Lookbehind
-    extends    IteratorIterator
-    implements Outer
+class Lookbehind extends IteratorIterator implements Outer
 {
     /**
      * Current iterator.
      *
-     * @var \Hoa\Iterator\Lookbehind
+     * @var \Iterator
      */
     protected $_iterator        = null;
 
@@ -75,7 +73,6 @@ class          Lookbehind
      * Construct.
      *
      * @param   \Iterator  $iterator    Iterator.
-     * @return  void
      */
     public function __construct(\Iterator $iterator)
     {

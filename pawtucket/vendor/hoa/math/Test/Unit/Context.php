@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@ use Hoa\Test;
  *
  * Test suite of the Hoa\Math\Context class.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Context extends Test\Unit\Suite
@@ -101,14 +101,24 @@ class Context extends Test\Unit\Suite
                     ->isInstanceOf('ArrayObject')
                 ->array(iterator_to_array($result))
                     ->isEqualTo([
-                        'PI'      => M_PI,
-                        'PI_2'    => M_PI_2,
-                        'PI_4'    => M_PI_4,
-                        'E'       => M_E,
-                        'SQRT_PI' => M_SQRTPI,
-                        'SQRT_2'  => M_SQRT2,
-                        'SQRT_3'  => M_SQRT3,
-                        'LN_PI'   => M_LNPI
+                        'PI'               => M_PI,
+                        'PI_2'             => M_PI_2,
+                        'PI_4'             => M_PI_4,
+                        'E'                => M_E,
+                        'SQRT_PI'          => M_SQRTPI,
+                        'SQRT_2'           => M_SQRT2,
+                        'SQRT_3'           => M_SQRT3,
+                        'LN_PI'            => M_LNPI,
+                        'LOG_2E'           => M_LOG2E,
+                        'LOG_10E'          => M_LOG10E,
+                        'LN_2'             => M_LN2,
+                        'LN_10'            => M_LN10,
+                        'ONE_OVER_PI'      => M_1_PI,
+                        'TWO_OVER_PI'      => M_2_PI,
+                        'TWO_OVER_SQRT_PI' => M_2_SQRTPI,
+                        'ONE_OVER_SQRT_2'  => M_SQRT1_2,
+                        'EULER'            => M_EULER,
+                        'INFINITE'         => INF
                     ]);
     }
 
@@ -164,7 +174,7 @@ class Context extends Test\Unit\Suite
                 ->object($result)
                     ->isInstanceOf('ArrayObject')
                 ->array(iterator_to_array($result))
-                    ->hasSize(22)
+                    ->hasSize(23)
                     ->hasKey('abs')
                     ->hasKey('acos')
                     ->hasKey('asin')
@@ -183,6 +193,8 @@ class Context extends Test\Unit\Suite
                     ->hasKey('min')
                     ->hasKey('pow')
                     ->hasKey('rad2deg')
+                    ->hasKey('round')
+                    ->hasKey('round')
                     ->hasKey('sin')
                     ->hasKey('sqrt')
                     ->hasKey('sum')
@@ -229,7 +241,7 @@ class Context extends Test\Unit\Suite
             ->when($result = $context->getFunction($name))
             ->then
                 ->object($result)
-                    ->isInstanceOf('Hoa\Core\Consistency\Xcallable');
+                    ->isInstanceOf('Hoa\Consistency\Xcallable');
     }
 
     public function case_context_returns_the_right_function_callable()

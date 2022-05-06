@@ -10,9 +10,9 @@ use Elasticsearch\Common\Exceptions;
  *
  * @category Elasticsearch
  * @package  Elasticsearch\Endpoints
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class Search extends AbstractEndpoint
 {
@@ -36,7 +36,7 @@ class Search extends AbstractEndpoint
     /**
      * @return string
      */
-    protected function getURI()
+    public function getURI()
     {
         $index = $this->index;
         $type = $this->type;
@@ -56,7 +56,7 @@ class Search extends AbstractEndpoint
     /**
      * @return string[]
      */
-    protected function getParamWhitelist()
+    public function getParamWhitelist()
     {
         return array(
             'analyzer',
@@ -64,7 +64,6 @@ class Search extends AbstractEndpoint
             'default_operator',
             'df',
             'explain',
-            'fields',
             'from',
             'ignore_unavailable',
             'allow_no_indices',
@@ -74,10 +73,13 @@ class Search extends AbstractEndpoint
             'lowercase_expanded_terms',
             'preference',
             'q',
+            'query_cache',
+            'request_cache',
             'routing',
             'scroll',
             'search_type',
             'size',
+            'slice',
             'sort',
             'source',
             '_source',
@@ -91,14 +93,19 @@ class Search extends AbstractEndpoint
             'timeout',
             'version',
             'fielddata_fields',
-            'filter_path'
+            'docvalue_fields',
+            'filter_path',
+            'terminate_after',
+            'stored_fields',
+            'batched_reduce_size',
+            'typed_keys'
         );
     }
 
     /**
      * @return string
      */
-    protected function getMethod()
+    public function getMethod()
     {
         return 'GET';
     }

@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,7 +41,7 @@ namespace Hoa\Stream;
  *
  * Manipulate stream buckets through brigades.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Bucket
@@ -77,7 +77,7 @@ class Bucket
     /**
      * Bucket.
      *
-     * @var \Hoa\Stream\Bucket
+     * @var resource
      */
     protected $_bucket  = null;
 
@@ -85,14 +85,13 @@ class Bucket
 
     /**
      * Set a brigade.
-     * If a stream is given (with the constant self::IS_A_STREAM), it will
+     * If a stream is given (with the constant `self::IS_A_STREAM`), it will
      * create a brigade automatically.
      *
      * @param   resource  &$brigade    A stream or a brigade.
-     * @param   bool      $is          Specify if $brigade is a stream or a
-     *                                 brigade, given by self::IS_A_* constant.
+     * @param   bool      $is          Specify if `$brigade` is a stream or a
+     *                                 brigade, given by `self::IS_A_*` constant.
      * @param   string    $buffer      Stream buffer.
-     * @return  void
      */
     public function __construct(&$brigade, $is = self::IS_A_BRIGADE, $buffer = '')
     {
@@ -176,7 +175,7 @@ class Bucket
      * Set bucket data.
      *
      * @param   string  $data    Data to set.
-     * @retun   string
+     * @return  string
      */
     public function setData($data)
     {

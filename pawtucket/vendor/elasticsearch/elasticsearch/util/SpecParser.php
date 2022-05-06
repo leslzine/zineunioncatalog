@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 
 require_once '../vendor/autoload.php';
@@ -8,7 +9,18 @@ $template = $twig->loadTemplate('endpoint.twig');
 
 $counter = 0;
 
-if ($handle = opendir('../vendor/elasticsearch/elasticsearch_src/rest-api-spec/api/')) {
+
+function getApiPath()
+{
+    $path = dirname(__FILE__).'/elasticsearch/rest-api-spec/api';
+    if (file_exists($path) !== true) {
+        $path = dirname(__FILE__).'/elasticsearch/rest-api-spec/src/main/resources/rest-api-spec/api';
+    }
+    return $path;
+}
+
+
+if ($handle = opendir(getApiPath())) {
     while (false !== ($entry = readdir($handle))) {
         if ($entry != "." && $entry != "..") {
             generateTemplate($entry, $template);
@@ -130,14 +142,14 @@ function generateTemplate($path, $template)
         return;
     }
 
-    $path = '../vendor/elasticsearch/elasticsearch_src/rest-api-spec/api/'.$path;
+    $path = getApiPath().DIRECTORY_SEPARATOR.$path;
     $json = file_get_contents($path);
     $data = json_decode($json, true);
 
     reset($data);
     $namespace = key($data);
     $data = $data[$namespace];
-    $namespace = explode(".", $namespace);
+    $namespace = explode('.', $namespace);
 
     $underscoreNamespace = array(
         'get',
@@ -150,7 +162,8 @@ function generateTemplate($path, $template)
     );
 
     $exceptions = array(
-        'delete_by_query'
+        'delete_by_query',
+        'update_by_query',
     );
 
     if (strpos($namespace[count($namespace)-1], '_')) {
@@ -166,7 +179,13 @@ function generateTemplate($path, $template)
 
     $data['url']['processed'] = processURLPaths($data);
     $data['url']['default'] = getDefaultPath($data['url']['processed'][count($data['url']['processed'])-1]);
-
+    if (count($data['methods']) > 1) {
+        if (in_array("GET", $data['methods'])) {
+            $data['methods'] = "GET";
+        } else {
+            $data['methods'] = $data['methods'][0];
+        }
+    }
     $renderVars = array(
         'json'      => $json,
         'data'      => $data,
@@ -176,7 +195,7 @@ function generateTemplate($path, $template)
 
     $ret = $template->render($renderVars);
 
-    $dir = './output/'.implode('/', array_map("ucfirst", array_splice($namespace, 0, count($namespace)-1)));
+    $dir = __DIR__.'/output/'.implode('/', array_map('ucfirst', array_splice($namespace, 0, count($namespace)-1)));
 
     if (substr($dir, -1) !== '/') {
         $dir .= '/';
@@ -191,8 +210,6 @@ function generateTemplate($path, $template)
     echo $dir."\n\n";
     $path = $dir.$renderVars['className'].'.php';
     echo $path."\n\n";
-    ;
 
     file_put_contents($path, $ret);
-    echo $ret;
 }

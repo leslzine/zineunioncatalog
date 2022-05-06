@@ -60,6 +60,8 @@ class JavascriptRenderer
 
     protected $enableJqueryNoConflict = true;
 
+    protected $useRequireJs = false;
+
     protected $initialization;
 
     protected $controls = array();
@@ -71,6 +73,8 @@ class JavascriptRenderer
     protected $ajaxHandlerBindToJquery = true;
 
     protected $ajaxHandlerBindToXHR = false;
+
+    protected $ajaxHandlerAutoShow = true;
 
     protected $openHandlerClass = 'PhpDebugBar.OpenHandler';
 
@@ -115,6 +119,7 @@ class JavascriptRenderer
      *  - ignore_collectors
      *  - ajax_handler_classname
      *  - ajax_handler_bind_to_jquery
+     *  - ajax_handler_auto_show
      *  - open_handler_classname
      *  - open_handler_url
      *
@@ -143,6 +148,9 @@ class JavascriptRenderer
         if (array_key_exists('enable_jquery_noconflict', $options)) {
             $this->setEnableJqueryNoConflict($options['enable_jquery_noconflict']);
         }
+        if (array_key_exists('use_requirejs', $options)) {
+            $this->setUseRequireJs($options['use_requirejs']);
+        }
         if (array_key_exists('controls', $options)) {
             foreach ($options['controls'] as $name => $control) {
                 $this->addControl($name, $control);
@@ -163,6 +171,9 @@ class JavascriptRenderer
         }
         if (array_key_exists('ajax_handler_bind_to_jquery', $options)) {
             $this->setBindAjaxHandlerToJquery($options['ajax_handler_bind_to_jquery']);
+        }
+        if (array_key_exists('ajax_handler_auto_show', $options)) {
+            $this->setAjaxHandlerAutoShow($options['ajax_handler_auto_show']);
         }
         if (array_key_exists('open_handler_classname', $options)) {
             $this->setOpenHandlerClass($options['open_handler_classname']);
@@ -353,6 +364,28 @@ class JavascriptRenderer
     }
 
     /**
+     * Sets whether to use RequireJS or not
+     *
+     * @param boolean $enabled
+     * @return $this
+     */
+    public function setUseRequireJs($enabled = true)
+    {
+        $this->useRequireJs = $enabled;
+        return $this;
+    }
+
+    /**
+     * Checks if RequireJS is used
+     *
+     * @return boolean
+     */
+    public function isRequireJsUsed()
+    {
+        return $this->useRequireJs;
+    }
+
+    /**
      * Adds a control to initialize
      *
      * Possible options:
@@ -487,6 +520,28 @@ class JavascriptRenderer
     }
 
     /**
+     * Sets whether new ajax debug data will be immediately shown.  Setting to false could be useful
+     * if there are a lot of tracking events cluttering things.
+     *
+     * @param boolean $autoShow
+     */
+    public function setAjaxHandlerAutoShow($autoShow = true)
+    {
+        $this->ajaxHandlerAutoShow = $autoShow;
+        return $this;
+    }
+
+    /**
+     * Checks whether the ajax handler will immediately show new ajax requests.
+     *
+     * @return boolean
+     */
+    public function isAjaxHandlerAutoShow()
+    {
+        return $this->ajaxHandlerAutoShow;
+    }
+
+    /**
      * Sets the class name of the js open handler
      *
      * @param string $className
@@ -529,12 +584,13 @@ class JavascriptRenderer
     }
 
     /**
-     * Add assets to render in the head
+     * Add assets stored in files to render in the head
      *
      * @param array $cssFiles An array of filenames
      * @param array $jsFiles  An array of filenames
      * @param string $basePath Base path of those files
      * @param string $baseUrl  Base url of those files
+     * @return $this
      */
     public function addAssets($cssFiles, $jsFiles, $basePath = null, $baseUrl = null)
     {
@@ -548,9 +604,36 @@ class JavascriptRenderer
     }
 
     /**
+     * Add inline assets to render inline in the head.  Ideally, you should store static assets in
+     * files that you add with the addAssets function.  However, adding inline assets is useful when
+     * integrating with 3rd-party libraries that require static assets that are only available in an
+     * inline format.
+     *
+     * The inline content arrays require special string array keys:  they are used to deduplicate
+     * content.  This is particularly useful if multiple instances of the same asset end up being
+     * added.  Inline assets from all collectors are merged together into the same array, so these
+     * content IDs effectively deduplicate the inline assets.
+     *
+     * @param array $inlineCss  An array map of content ID to inline CSS content (not including <style> tag)
+     * @param array $inlineJs   An array map of content ID to inline JS content (not including <script> tag)
+     * @param array $inlineHead An array map of content ID to arbitrary inline HTML content (typically
+     *                          <style>/<script> tags); it must be embedded within the <head> element
+     * @return $this
+     */
+    public function addInlineAssets($inlineCss, $inlineJs, $inlineHead)
+    {
+        $this->additionalAssets[] = array(
+            'inline_css' => (array) $inlineCss,
+            'inline_js' => (array) $inlineJs,
+            'inline_head' => (array) $inlineHead
+        );
+        return $this;
+    }
+
+    /**
      * Returns the list of asset files
      *
-     * @param string $type Only return css or js files
+     * @param string $type 'css', 'js', 'inline_css', 'inline_js', 'inline_head', or null for all
      * @param string $relativeTo The type of path to which filenames must be relative (path, url or null)
      * @return array
      */
@@ -558,6 +641,9 @@ class JavascriptRenderer
     {
         $cssFiles = $this->cssFiles;
         $jsFiles = $this->jsFiles;
+        $inlineCss = array();
+        $inlineJs = array();
+        $inlineHead = array();
 
         if ($this->includeVendors !== false) {
             if ($this->includeVendors === true || in_array('css', $this->includeVendors)) {
@@ -588,11 +674,29 @@ class JavascriptRenderer
             $root = $this->getRelativeRoot($relativeTo,
                 $this->makeUriRelativeTo($basePath, $this->basePath),
                 $this->makeUriRelativeTo($baseUrl, $this->baseUrl));
-            $cssFiles = array_merge($cssFiles, $this->makeUriRelativeTo((array) $assets['css'], $root));
-            $jsFiles = array_merge($jsFiles, $this->makeUriRelativeTo((array) $assets['js'], $root));
+            if (isset($assets['css'])) {
+                $cssFiles = array_merge($cssFiles, $this->makeUriRelativeTo((array) $assets['css'], $root));
+            }
+            if (isset($assets['js'])) {
+                $jsFiles = array_merge($jsFiles, $this->makeUriRelativeTo((array) $assets['js'], $root));
+            }
+
+            if (isset($assets['inline_css'])) {
+                $inlineCss = array_merge($inlineCss, (array) $assets['inline_css']);
+            }
+            if (isset($assets['inline_js'])) {
+                $inlineJs = array_merge($inlineJs, (array) $assets['inline_js']);
+            }
+            if (isset($assets['inline_head'])) {
+                $inlineHead = array_merge($inlineHead, (array) $assets['inline_head']);
+            }
         }
 
-        return $this->filterAssetArray(array($cssFiles, $jsFiles), $type);
+        // Deduplicate files
+        $cssFiles = array_unique($cssFiles);
+        $jsFiles = array_unique($jsFiles);
+
+        return $this->filterAssetArray(array($cssFiles, $jsFiles, $inlineCss, $inlineJs, $inlineHead), $type);
     }
 
     /**
@@ -642,53 +746,64 @@ class JavascriptRenderer
     }
 
     /**
-     * Filters a tuple of (css, js) assets according to $type
+     * Filters a tuple of (css, js, inline_css, inline_js, inline_head) assets according to $type
      *
      * @param array $array
-     * @param string $type 'css', 'js' or null for both
+     * @param string $type 'css', 'js', 'inline_css', 'inline_js', 'inline_head', or null for all
      * @return array
      */
     protected function filterAssetArray($array, $type = null)
     {
-        $type = strtolower($type);
-        if ($type === 'css') {
-            return $array[0];
-        }
-        if ($type === 'js') {
-            return $array[1];
-        }
-        return $array;
+        $types = array('css', 'js', 'inline_css', 'inline_js', 'inline_head');
+        $typeIndex = array_search(strtolower($type), $types);
+        return $typeIndex !== false ? $array[$typeIndex] : $array;
     }
 
     /**
-     * Returns a tuple where the both items are Assetic AssetCollection,
-     * the first one being css files and the second js files
+     * Returns an array where all items are Assetic AssetCollection:
+     *  - The first one contains the CSS files
+     *  - The second one contains the JS files
+     *  - The third one contains arbitrary inline HTML (typically composed of <script>/<style>
+     *    elements); it must be embedded within the <head> element
      *
-     * @param string $type Only return css or js collection
-     * @return array or \Assetic\Asset\AssetCollection
+     * @param string $type Optionally return only 'css', 'js', or 'inline_head' collection
+     * @return array|\Assetic\Asset\AssetCollection
      */
     public function getAsseticCollection($type = null)
     {
-        list($cssFiles, $jsFiles) = $this->getAssets();
-        return $this->filterAssetArray(array(
-            $this->createAsseticCollection($cssFiles),
-            $this->createAsseticCollection($jsFiles)
-        ), $type);
+        $types = array('css', 'js', 'inline_head');
+        $typeIndex = array_search(strtolower($type), $types);
+
+        list($cssFiles, $jsFiles, $inlineCss, $inlineJs, $inlineHead) = $this->getAssets();
+        $collections = array(
+            $this->createAsseticCollection($cssFiles, $inlineCss),
+            $this->createAsseticCollection($jsFiles, $inlineJs),
+            $this->createAsseticCollection(null, $inlineHead)
+        );
+        return $typeIndex !== false ? $collections[$typeIndex] : $collections;
     }
 
     /**
-     * Create an Assetic AssetCollection with the given files.
+     * Create an Assetic AssetCollection with the given content.
      * Filenames will be converted to absolute path using
      * the base path.
      *
-     * @param array $files
+     * @param array|null $files Array of asset filenames.
+     * @param array|null $content Array of inline asset content.
      * @return \Assetic\Asset\AssetCollection
      */
-    protected function createAsseticCollection($files)
+    protected function createAsseticCollection($files = null, $content = null)
     {
         $assets = array();
-        foreach ($files as $file) {
-            $assets[] = new \Assetic\Asset\FileAsset($file);
+        if ($files) {
+            foreach ($files as $file) {
+                $assets[] = new \Assetic\Asset\FileAsset($file);
+            }
+        }
+        if ($content) {
+            foreach ($content as $item) {
+                $assets[] = new \Assetic\Asset\StringAsset($item);
+            }
         }
         return new \Assetic\Asset\AssetCollection($assets);
     }
@@ -700,7 +815,7 @@ class JavascriptRenderer
      */
     public function dumpCssAssets($targetFilename = null)
     {
-        $this->dumpAssets($this->getAssets('css'), $targetFilename);
+        $this->dumpAssets($this->getAssets('css'), $this->getAssets('inline_css'), $targetFilename);
     }
 
     /**
@@ -710,25 +825,48 @@ class JavascriptRenderer
      */
     public function dumpJsAssets($targetFilename = null)
     {
-        $this->dumpAssets($this->getAssets('js'), $targetFilename);
+        $this->dumpAssets($this->getAssets('js'), $this->getAssets('inline_js'), $targetFilename, $this->useRequireJs);
+    }
+
+    /**
+     * Write all inline HTML header assets to standard output or in a file (only returns assets not
+     * already returned by dumpCssAssets or dumpJsAssets)
+     *
+     * @param string $targetFilename
+     */
+    public function dumpHeadAssets($targetFilename = null)
+    {
+        $this->dumpAssets(null, $this->getAssets('inline_head'), $targetFilename);
     }
 
     /**
      * Write assets to standard output or in a file
      *
-     * @param array $files
+     * @param array|null $files Filenames containing assets
+     * @param array|null $content Inline content to dump
      * @param string $targetFilename
+     * @param bool $useRequireJs
      */
-    protected function dumpAssets($files, $targetFilename = null)
+    protected function dumpAssets($files = null, $content = null, $targetFilename = null, $useRequireJs = false)
     {
-        $content = '';
-        foreach ($files as $file) {
-            $content .= file_get_contents($file) . "\n";
+        $dumpedContent = '';
+        if ($files) {
+            foreach ($files as $file) {
+                $dumpedContent .= file_get_contents($file) . "\n";
+            }
+        }
+        if ($content) {
+            foreach ($content as $item) {
+                $dumpedContent .= $item . "\n";
+            }
+        }
+        if ($useRequireJs) {
+            $dumpedContent = "define('debugbar', ['jquery'], function($){\r\n" . $dumpedContent . "\r\n return PhpDebugBar; \r\n});";
         }
         if ($targetFilename !== null) {
-            file_put_contents($targetFilename, $content);
+            file_put_contents($targetFilename, $dumpedContent);
         } else {
-            echo $content;
+            echo $dumpedContent;
         }
     }
 
@@ -741,18 +879,30 @@ class JavascriptRenderer
      */
     public function renderHead()
     {
-        list($cssFiles, $jsFiles) = $this->getAssets(null, self::RELATIVE_URL);
+        list($cssFiles, $jsFiles, $inlineCss, $inlineJs, $inlineHead) = $this->getAssets(null, self::RELATIVE_URL);
         $html = '';
 
         foreach ($cssFiles as $file) {
             $html .= sprintf('<link rel="stylesheet" type="text/css" href="%s">' . "\n", $file);
         }
 
+        foreach ($inlineCss as $content) {
+            $html .= sprintf('<style type="text/css">%s</style>' . "\n", $content);
+        }
+
         foreach ($jsFiles as $file) {
             $html .= sprintf('<script type="text/javascript" src="%s"></script>' . "\n", $file);
         }
 
-        if ($this->enableJqueryNoConflict) {
+        foreach ($inlineJs as $content) {
+            $html .= sprintf('<script type="text/javascript">%s</script>' . "\n", $content);
+        }
+
+        foreach ($inlineHead as $content) {
+            $html .= $content . "\n";
+        }
+
+        if ($this->enableJqueryNoConflict && !$this->useRequireJs) {
             $html .= '<script type="text/javascript">jQuery.noConflict(true);</script>' . "\n";
         }
 
@@ -764,6 +914,8 @@ class JavascriptRenderer
      *
      * @param boolean $here Set position of HTML. True if is to current position or false for end file
      * @param boolean $initialize Whether to render the de bug bar initialization code
+     * @param bool $renderStackedData
+     * @param bool $head
      * @return string Return "{--DEBUGBAR_OB_START_REPLACE_ME--}" or return an empty string if $here == false
      */
     public function renderOnShutdown($here = true, $initialize = true, $renderStackedData = true, $head = false)
@@ -795,6 +947,8 @@ class JavascriptRenderer
      *
      * @param boolean $here Set position of HTML. True if is to current position or false for end file
      * @param boolean $initialize Whether to render the de bug bar initialization code
+     * @param bool $renderStackedData
+     * @param bool $head
      */
     public function replaceTagInBuffer($here = true, $initialize = true, $renderStackedData = true, $head = false)
     {
@@ -815,7 +969,8 @@ class JavascriptRenderer
      *
      * AJAX request should not render the initialization code.
      *
-     * @param boolean $initialize Whether to render the de bug bar initialization code
+     * @param boolean $initialize Whether or not to render the debug bar initialization code
+     * @param boolean $renderStackedData Whether or not to render the stacked data
      * @return string
      */
     public function render($initialize = true, $renderStackedData = true)
@@ -835,7 +990,12 @@ class JavascriptRenderer
         $suffix = !$initialize ? '(ajax)' : null;
         $js .= $this->getAddDatasetCode($this->debugBar->getCurrentRequestId(), $this->debugBar->getData(), $suffix);
 
-        return "<script type=\"text/javascript\">\n$js\n</script>\n";
+        if ($this->useRequireJs){
+            return "<script type=\"text/javascript\">\nrequire(['debugbar'], function(PhpDebugBar){ $js });\n</script>\n";
+        } else {
+            return "<script type=\"text/javascript\">\n$js\n</script>\n";
+        }
+
     }
 
     /**
@@ -856,7 +1016,12 @@ class JavascriptRenderer
         }
 
         if ($this->ajaxHandlerClass) {
-            $js .= sprintf("%s.ajaxHandler = new %s(%s);\n", $this->variableName, $this->ajaxHandlerClass, $this->variableName);
+            $js .= sprintf("%s.ajaxHandler = new %s(%s, undefined, %s);\n",
+                $this->variableName,
+                $this->ajaxHandlerClass,
+                $this->variableName,
+                $this->ajaxHandlerAutoShow ? 'true' : 'false'
+            );
             if ($this->ajaxHandlerBindToXHR) {
                 $js .= sprintf("%s.ajaxHandler.bindToXHR();\n", $this->variableName);
             } elseif ($this->ajaxHandlerBindToJquery) {
@@ -945,6 +1110,7 @@ class JavascriptRenderer
      *
      * @param string $requestId
      * @param array $data
+     * @param mixed $suffix
      * @return string
      */
     protected function getAddDatasetCode($requestId, $data, $suffix = null)

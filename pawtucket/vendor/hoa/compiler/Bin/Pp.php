@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,6 +37,7 @@
 namespace Hoa\Compiler\Bin;
 
 use Hoa\Compiler;
+use Hoa\Consistency;
 use Hoa\Console;
 use Hoa\File;
 
@@ -45,7 +46,7 @@ use Hoa\File;
  *
  * Play with PP.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Pp extends Console\Dispatcher\Kit
@@ -126,13 +127,14 @@ class Pp extends Console\Dispatcher\Kit
         }
 
         $compiler = Compiler\Llk::load(new File\Read($grammar));
-        $data     = new File\Read($language);
+        $stream   = new File\Read($language);
+        $data     = $stream->readAll();
 
         try {
-            $ast = $compiler->parse($data->readAll());
+            $ast = $compiler->parse($data);
         } catch (Compiler\Exception $e) {
             if (true === $tokenSequence) {
-                $this->printTokenSequence($compiler);
+                $this->printTokenSequence($compiler, $data);
                 echo "\n\n";
             }
 
@@ -142,7 +144,7 @@ class Pp extends Console\Dispatcher\Kit
         }
 
         if (true === $tokenSequence) {
-            $this->printTokenSequence($compiler);
+            $this->printTokenSequence($compiler, $data);
             echo "\n\n";
         }
 
@@ -152,7 +154,7 @@ class Pp extends Console\Dispatcher\Kit
         }
 
         if (null !== $visitor) {
-            $visitor = dnew($visitor);
+            $visitor = Consistency\Autoloader::dnew($visitor);
             echo $visitor->visit($ast);
         }
 
@@ -200,11 +202,13 @@ class Pp extends Console\Dispatcher\Kit
      * Print token sequence.
      *
      * @param   \Hoa\Compiler\Llk\Parser  $compiler    Compiler.
+     * @param   string                    $data        Data to lex.
      * @return  void
      */
-    protected function printTokenSequence(Compiler\Llk\Parser $compiler)
+    protected function printTokenSequence(Compiler\Llk\Parser $compiler, $data)
     {
-        $sequence = $compiler->getTokenSequence();
+        $lexer    = new Compiler\Llk\Lexer();
+        $sequence = $lexer->lexMe($data, $compiler->getTokens());
         $format   = '%' . (strlen((string) count($sequence)) + 1) . 's  ' .
                     '%-13s %-20s  %s  %6s' . "\n";
 

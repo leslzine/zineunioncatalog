@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2015 Whirl-i-Gig
+ * Copyright 2015-2018 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -22,26 +22,28 @@
  * GNU General Public License. (http://www.gnu.org/copyleft/gpl.html). See
  * the "license.txt" file for details, or visit the CollectiveAccess web site at
  * http://www.CollectiveAccess.org
- *3/11/17 20:47 - removed "<li><i class="fa fa-youtube-play"></i></li>"; added "(CC BY-SA 4.0)"
+ *
  * ----------------------------------------------------------------------
  */
 ?>
 		<div style="clear:both; height:1px;"><!-- empty --></div>
-		<div id="footer">
+		</div><!-- end pageArea --></div><!-- end col --></div><!-- end row --></div><!-- end container -->
+		<footer id="footer">
 			<ul class="list-inline pull-right social">
-				<li><a href="https://twitter.com/zinecat" class="fa fa-twitter"></a></li>
-				<li><a href="https://www.facebook.com/ZineUnionCatalog/" class="fa fa-facebook-square"></a></li>
-				
+				<li><i class="fa fa-twitter"></i></li>
+				<li><i class="fa fa-facebook-square"></i></li>
+				<li><i class="fa fa-youtube-play"></i></li>
 			</ul>
 			<div>
-				(CC BY-SA 4.0)
+				Footer text here
 			</div>
 			<ul class="list-inline">
-				<li><a href="http://zinecat.org/index.php">User Dashboard</a></li>
-				
+				<li><a href="#">Link 1</a></li>
+				<li><a href="#">Link 2</a></li>
+				<li><a href="#">Link 3</a></li>
 			</ul>
-			<div><small>powered by <a href="http://www.collectiveaccess.org">CollectiveAccess 2015</a></small></div>
-		</div><!-- end footer -->
+			<div><small>powered by <a href="http://www.collectiveaccess.org">CollectiveAccess 2018</a></small></div>
+		</footer><!-- end footer -->
 <?php
 	//
 	// Output HTML for debug bar
@@ -50,7 +52,7 @@
 		print Debug::$bar->getJavascriptRenderer()->render();
 	}
 ?>
-	</div><!-- end pageArea --></div><!-- end col --></div><!-- end row --></div><!-- end container -->
+	
 		<?php print TooltipManager::getLoadHTML(); ?>
 		<div id="caMediaPanel"> 
 			<div id="caMediaPanelContentArea">

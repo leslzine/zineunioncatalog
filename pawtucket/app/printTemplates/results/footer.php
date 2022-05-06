@@ -36,23 +36,59 @@
 	$vo_result 				= $this->getVar('result');
 	$vn_num_items			= (int)$vo_result->numHits();
 	
-	//if($this->request->config->get('report_footer_enabled')) {
-?>
-<div id='footer'>
-<?php
-	if($this->request->config->get('report_show_search_term')) {
-		print "<span class='footerText'>".$this->getVar('criteria_summary')."</span>";
-	}
+	 	$t_item = $this->getVar('t_subject');
 	
-	if($this->request->config->get('report_show_number_results')) {
-		print "<span class='footerText'>".(($vn_num_items == 1) ? _t('%1 item', $vn_num_items) : _t('%1 items', $vn_num_items))."</span>";
-	}
-	
-	if($this->request->config->get('report_show_timestamp')) {
-		print "<span class='footerText'>".caGetLocalizedDate(null, array('dateFormat' => 'delimited'))."</span>";
-	}
+	if($this->request->config->get('summary_footer_enabled')) {
+		$vs_footer = "<div class='pagingText' id='pagingText'>"._t('Page')." <span class='page'></span> "._t('of')." <span class='topage'></span></div>";
+		
+		switch($this->getVar('PDFRenderer')) {
+			case 'wkhtmltopdf':
 ?>
-</div>
+				<!--BEGIN FOOTER-->
+				<!DOCTYPE html>
+				<html>
+				<head>
+					<link type="text/css" href="<?php print $this->getVar('base_path');?>/pdf.css" rel="stylesheet" />
+					<script>
+						function subst() {
+						  var vars={};
+						  var x=document.location.search.substring(1).split('&');
+						  for(var i in x) {var z=x[i].split('=',2);vars[z[0]] = unescape(z[1]);}
+						  var x=['frompage','topage','page','webpage','section','subsection','subsubsection'];
+						  for(var i in x) {
+							var y = document.getElementsByClassName(x[i]);
+							for(var j=0; j<y.length; ++j) y[j].textContent = vars[x[i]];
+						  }
+						}
+					</script>
+					<meta charset="utf-8" />
+				</head>
+				<body onLoad="subst()">
+					<div id='footer'>
+				<?php
+					if($this->request->config->get('report_show_search_term')){
+						print "<div class='searchTermText' id='searchTermText'>".str_replace("Search: * / ", "", $this->getVar('criteria_summary'))."</div>";
+					}
+					print "<div class='pagingText' id='pagingText'>"._t('Page')." <span class='page'></span> "._t('of')." <span class='topage'></span></div>";
+				?>
+					</div>
+				</body>
+				</html>
+				<!--END FOOTER-->
 <?php
-	//}
+			break;
+			# -----------------------------------
+			default:
 ?>
+				<div id='footerdompdf'>
+<?php
+					if($this->request->config->get('report_show_search_term')){
+						print "<div class='searchTermText' id='searchTermText'>".str_replace("Search: * / ", "", $this->getVar('criteria_summary'))."</div>";
+					}
+?>
+					<div class='pagingText' id='pagingText'><?php print _t('Page'); ?> </div>
+				</div>
+<?php
+			break;
+		}
+	}

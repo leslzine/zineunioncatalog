@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@ use Hoa\Test;
  *
  * Test suite of the regular expression iterator.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class RegularExpression extends Test\Unit\Suite
@@ -115,7 +115,7 @@ class RegularExpression extends Test\Unit\Suite
             ->when($result = $iterator->getChildren())
             ->then
                 ->object($result)
-                    ->isInstanceOf('Hoa\Iterator\Recursive\RegularExpression')
+                    ->isInstanceOf(LUT\Recursive\RegularExpression::class)
                 ->integer($result->getMode())
                     ->isEqualTo($mode)
                 ->integer($result->getFlags())

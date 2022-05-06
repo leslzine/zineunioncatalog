@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@ use Hoa\Stream;
  *
  * Read/write a temporary file.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class          ReadWrite
@@ -60,7 +60,6 @@ class          ReadWrite
      * @param   string  $context       Context ID (please, see the
      *                                 \Hoa\Stream\Context class).
      * @param   bool    $wait          Differ opening or not.
-     * @return  void
      */
     public function __construct(
         $streamName,
@@ -331,7 +330,7 @@ class          ReadWrite
      * @param   array   $array    Array.
      * @return  mixed
      */
-    public function writeArray(Array $array)
+    public function writeArray(array $array)
     {
         $array = var_export($array, true);
 

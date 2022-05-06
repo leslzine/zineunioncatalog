@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,14 +36,14 @@
 
 namespace Hoa\Compiler\Llk\Rule;
 
-use Hoa\Core;
+use Hoa\Consistency;
 
 /**
  * Class \Hoa\Compiler\Llk\Rule.
  *
  * Rule parent.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 abstract class Rule
@@ -56,11 +56,11 @@ abstract class Rule
     protected $_name           = null;
 
     /**
-     * Rule content.
+     * Rule's children. Can be an array of names or a single name.
      *
      * @var mixed
      */
-    protected $_content        = null;
+    protected $_children       = null;
 
     /**
      * Node ID.
@@ -96,6 +96,7 @@ abstract class Rule
      * @var string
      */
     protected $_pp             = null;
+
     /**
      * Whether the rule is transitional or not (i.e. not declared in the grammar
      * but created by the analyzer).
@@ -109,15 +110,14 @@ abstract class Rule
     /**
      * Constructor.
      *
-     * @param   string  $name       Name.
-     * @param   mixed   $content    Content.
-     * @param   string  $nodeId     Node ID.
-     * @return  void
+     * @param   string  $name        Rule name.
+     * @param   mixed   $children    Children.
+     * @param   string  $nodeId      Node ID.
      */
-    public function __construct($name, $content, $nodeId = null)
+    public function __construct($name, $children, $nodeId = null)
     {
         $this->setName($name);
-        $this->setContent($content);
+        $this->setChildren($children);
         $this->setNodeId($nodeId);
 
         return;
@@ -148,27 +148,27 @@ abstract class Rule
     }
 
     /**
-     * Set rule content.
+     * Set rule's children.
      *
-     * @param   mixed  $content    Content.
+     * @param   mixed  $children    Children.
      * @return  mixed
      */
-    protected function setContent($content)
+    protected function setChildren($children)
     {
-        $old            = $this->_content;
-        $this->_content = $content;
+        $old             = $this->_children;
+        $this->_children = $children;
 
         return $old;
     }
 
     /**
-     * Get rule content.
+     * Get rule's children.
      *
      * @return  mixed
      */
-    public function getContent()
+    public function getChildren()
     {
-        return $this->_content;
+        return $this->_children;
     }
 
     /**
@@ -292,4 +292,4 @@ abstract class Rule
 /**
  * Flex entity.
  */
-Core\Consistency::flexEntity('Hoa\Compiler\Llk\Rule\Rule');
+Consistency::flexEntity('Hoa\Compiler\Llk\Rule\Rule');

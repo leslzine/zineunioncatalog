@@ -84,6 +84,7 @@ class DebugBar implements ArrayAccess
      *
      * @param string $name
      * @return DataCollectorInterface
+     * @throws DebugBarException
      */
     public function getCollector($name)
     {
@@ -107,6 +108,7 @@ class DebugBar implements ArrayAccess
      * Sets the request id generator
      *
      * @param RequestIdGeneratorInterface $generator
+     * @return $this
      */
     public function setRequestIdGenerator(RequestIdGeneratorInterface $generator)
     {
@@ -142,6 +144,7 @@ class DebugBar implements ArrayAccess
      * Sets the storage backend to use to store the collected data
      *
      * @param StorageInterface $storage
+     * @return $this
      */
     public function setStorage(StorageInterface $storage = null)
     {
@@ -171,6 +174,7 @@ class DebugBar implements ArrayAccess
      * Sets the HTTP driver
      *
      * @param HttpDriverInterface $driver
+     * @return $this
      */
     public function setHttpDriver(HttpDriverInterface $driver)
     {
@@ -200,14 +204,33 @@ class DebugBar implements ArrayAccess
      */
     public function collect()
     {
-        $this->data = array(
-            '__meta' => array(
-                'id' => $this->getCurrentRequestId(),
-                'datetime' => date('Y-m-d H:i:s'),
-                'utime' => microtime(true),
+        if (php_sapi_name() === 'cli') {
+            $ip = gethostname();
+            if ($ip) {
+                $ip = gethostbyname($ip);
+            } else {
+                $ip = '127.0.0.1';
+            }
+            $request_variables = array(
+                'method' => 'CLI',
+                'uri' => isset($_SERVER['SCRIPT_FILENAME']) ? realpath($_SERVER['SCRIPT_FILENAME']) : null,
+                'ip' => $ip
+            );
+        } else {
+            $request_variables = array(
                 'method' => isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : null,
                 'uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : null,
                 'ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : null
+            );
+        }
+        $this->data = array(
+            '__meta' => array_merge(
+                array(
+                    'id' => $this->getCurrentRequestId(),
+                    'datetime' => date('Y-m-d H:i:s'),
+                    'utime' => microtime(true)
+                ),
+                $request_variables
             )
         );
 
@@ -287,6 +310,7 @@ class DebugBar implements ArrayAccess
      * @param bool $useOpenHandler
      * @param string $headerName
      * @param integer $maxHeaderLength
+     * @return $this
      */
     public function sendDataInHeaders($useOpenHandler = null, $headerName = 'phpdebugbar', $maxHeaderLength = 4096)
     {
@@ -369,6 +393,7 @@ class DebugBar implements ArrayAccess
      * Sets the key to use in the $_SESSION array
      *
      * @param string $ns
+     * @return $this
      */
     public function setStackDataSessionNamespace($ns)
     {
@@ -391,6 +416,7 @@ class DebugBar implements ArrayAccess
      * if a storage is enabled
      *
      * @param boolean $enabled
+     * @return $this
      */
     public function setStackAlwaysUseSessionStorage($enabled = true)
     {
@@ -411,8 +437,8 @@ class DebugBar implements ArrayAccess
 
     /**
      * Initializes the session for stacked data
-     *
      * @return HttpDriverInterface
+     * @throws DebugBarException
      */
     protected function initStackSession()
     {
@@ -430,9 +456,8 @@ class DebugBar implements ArrayAccess
 
     /**
      * Returns a JavascriptRenderer for this instance
-     *
      * @param string $baseUrl
-     * @param string $basePathng
+     * @param string $basePath
      * @return JavascriptRenderer
      */
     public function getJavascriptRenderer($baseUrl = null, $basePath = null)

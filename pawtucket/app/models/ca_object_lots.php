@@ -34,9 +34,9 @@
    *
    */
 
-require_once(__CA_LIB_DIR__."/ca/IBundleProvider.php");
-require_once(__CA_LIB_DIR__."/ca/RepresentableBaseModel.php");
-require_once(__CA_LIB_DIR__."/ca/CurrentLocationCriterionTrait.php");
+require_once(__CA_LIB_DIR__."/IBundleProvider.php");
+require_once(__CA_LIB_DIR__."/RepresentableBaseModel.php");
+require_once(__CA_LIB_DIR__."/CurrentLocationCriterionTrait.php");
 require_once(__CA_MODELS_DIR__."/ca_objects.php");
 
 
@@ -337,8 +337,21 @@ class ca_object_lots extends RepresentableBaseModel {
 		$this->BUNDLES['ca_sets'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related sets'));
 		$this->BUNDLES['ca_sets_checklist'] = array('type' => 'special', 'repeating' => true, 'label' => _t('Sets'));
 		
+		$this->BUNDLES['ca_item_tags'] = array('type' => 'special', 'repeating' => true, 'label' => _t('Tags'));
+		
 		$this->BUNDLES['ca_objects'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects'));
-		$this->BUNDLES['ca_objects_table'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects table'));
+		$this->BUNDLES['ca_objects_table'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects list'));
+		$this->BUNDLES['ca_objects_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects list'));
+		$this->BUNDLES['ca_object_representations_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related object representations list'));
+		$this->BUNDLES['ca_entities_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related entities list'));
+		$this->BUNDLES['ca_places_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related places list'));
+		$this->BUNDLES['ca_occurrences_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related occurrences list'));
+		$this->BUNDLES['ca_collections_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related collections list'));
+		$this->BUNDLES['ca_list_items_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related list items list'));
+		$this->BUNDLES['ca_storage_locations_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related storage locations list'));
+		$this->BUNDLES['ca_loans_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related loans list'));
+		$this->BUNDLES['ca_movements_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related movements list'));
+		$this->BUNDLES['ca_object_lots_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related object lots list'));
 		
 		$this->BUNDLES['authority_references_list'] = array('type' => 'special', 'repeating' => false, 'label' => _t('References'));
 	}
@@ -422,6 +435,7 @@ class ca_object_lots extends RepresentableBaseModel {
  	 * @param int $pn_lot_id Optional lot_id to get object list for; if null then the id of the currently loaded lot will be used
  	 * @param array $pa_options Options include:
  	 *		return = Set to "components" to return the count of component objects only; "objects" to return the count of objects (but not components) or "all" to return a count of any kind of object. [Default = "all"]
+ 	 *		excludeChildObjects = Only return top-level objects, excluding sub-objects. [Default is false]
  	 * @return array List of objects related to the object lot or null if $pn_lot_id is not set and there is no currently loaded lot
  	 */
  	 public function getObjects($pn_lot_id=null, $pa_options=null) {
@@ -442,7 +456,7 @@ class ca_object_lots extends RepresentableBaseModel {
 				SELECT *
 				FROM ca_objects
 				WHERE
-					lot_id = ? AND deleted = 0
+					lot_id = ? AND deleted = 0 ".(caGetOption('excludeChildObjects', $pa_options, false) ? " AND parent_id IS NULL" : "")."
 				ORDER BY
 					idno_sort
 			", (int)$vn_lot_id);
@@ -458,7 +472,7 @@ class ca_object_lots extends RepresentableBaseModel {
 			SELECT *
 			FROM ca_objects
 			WHERE
-				hier_object_id IN (?) AND deleted = 0
+				hier_object_id IN (?) AND deleted = 0 ".(caGetOption('excludeChildObjects', $pa_options, false) ? " AND parent_id IS NULL" : "")."
 			ORDER BY
 				idno_sort
 		", array(array_keys($va_rows)));
@@ -477,10 +491,11 @@ class ca_object_lots extends RepresentableBaseModel {
 	# ------------------------------------------------------
  	/**
  	 * 
- 	 *
+ 	 * @param array $pa_options Options include:
+ 	 *      reindex = force any idno that is out of the current 1-based index to be renumbered. Eg. if there are 12 objects in the lot, any one numbers > 12 will be renumbered to be between 1 and 12. [Default is false]
  	 * @return array List of objects with non-conforming idnos, or false if there are no non-conforming objects
  	 */
- 	 public function getObjectsWithNonConformingIdnos() {
+ 	 public function getObjectsWithNonConformingIdnos($pa_options=null) {
  	 	if (!$this->getPrimaryKey()) { return false; }
 		
 		$t_object = new ca_objects();
@@ -488,19 +503,38 @@ class ca_object_lots extends RepresentableBaseModel {
 		$vs_separator = $t_idno->getSeparator();
 		$va_objects = $this->getObjects();
 		$vs_lot_num = $this->get('idno_stub');
+		$va_lot_num = explode($vs_separator, $vs_lot_num);
 		
 		$va_non_conforming_objects= array();
+		
+		$c = sizeof($va_objects);
+		$seen_idnos = [];
 		foreach($va_objects as $va_object) {
 			if (!preg_match("!^{$vs_lot_num}{$vs_separator}!", $va_object['idno'])) {
-				$va_non_conforming_objects[$va_object['object_id']] = $va_object;
+				$va_non_conforming_objects[$va_object['object_id']] = array_merge($va_object, ['_reason' => 'out-of-lot']);
+				$seen_idnos[$va_object['idno']] = true;
+				continue;
 			}
+			
+			// Detect dupes
+			if(isset($seen_idnos[$va_object['idno']])) {
+			    $va_non_conforming_objects[$va_object['object_id']] = array_merge($va_object, ['_reason' => 'dupe']);
+			    continue;
+			}
+			
+			$seen_idnos[$va_object['idno']] = true;
+			
+			if(caGetOption('reindex', $pa_options, false)) {
+                $tmp = explode($vs_separator, $va_object['idno']);
+                $n = (int)$tmp[sizeof($va_lot_num)];
+                if ($n > $c) { 
+                    $va_non_conforming_objects[$va_object['object_id']] = array_merge($va_object, ['_reason' => 'out-of-range']);
+                    continue;
+                }
+            }
 		}
 		
-		if (sizeof($va_non_conforming_objects)) {
-			return $va_non_conforming_objects;
-		} else {
-			return false;
-		}
+		return (is_array($va_non_conforming_objects) && sizeof($va_non_conforming_objects)) ? $va_non_conforming_objects : false;
 	}
 	# ------------------------------------------------------
  	/**
@@ -528,14 +562,54 @@ class ca_object_lots extends RepresentableBaseModel {
 			$t_object->setTransaction($o_trans);
 			$t_idno = $t_object->getIDNoPlugInInstance();
 			$vs_separator = $t_idno->getSeparator();
-			$vn_i = 1;
+			$va_lot_num = explode($vs_separator, $vs_lot_num);
+			
+			$nums = [];
+			$maxnum = 0;
 			foreach($va_objects as $vn_object_id => $va_object_info) {
+			    $tmp = explode($vs_separator, $va_object_info['idno']);
+			    $n = (int)$tmp[sizeof($va_lot_num)];
+			    $nums[$n] = true;
+			    if ($n > $maxnum) { $maxnum = $n; }
+			}
+			
+			$i = 1;
+			foreach($va_non_conforming_objects as $vn_object_id => $va_object_info) {
 				if ($t_object->load($vn_object_id)) {
 					if ($po_application_plugin_manager) {
 						$po_application_plugin_manager->hookBeforeSaveItem(array('id' => $vn_object_id, 'table_num' => $t_object->tableNum(), 'table_name' => $t_object->tableName(), 'instance' => $t_object));
 					}
 					$t_object->setMode(ACCESS_WRITE);
-					$t_object->set('idno', $vs_lot_num.$vs_separator.$vn_i);
+					
+					$va_tmp = $va_lot_num;
+					
+					$cur_num_tmp = explode($vs_separator, $t_object->get('idno'));
+			        $n = (int)$cur_num_tmp[sizeof($va_lot_num)];
+			        
+			        switch($va_object_info['_reason']) {
+			            case 'out-of-lot':
+			                $va_tmp[] = $n;
+			                break;
+			            case 'dupe':
+			                $maxnum++;
+			                $va_tmp[] = $maxnum;
+			                break;
+			            case 'out-of-range':
+                            while(isset($nums[$i])) {
+                                $i++;
+                            }
+                            $va_tmp[] = $i;
+                            $nums[$i] = true;
+			                break;
+			        }
+			        
+			        $tail = array_slice($cur_num_tmp, sizeof($va_tmp));
+			        $va_tmp += $tail;
+			        
+			       // print join($vs_separator, $cur_num_tmp)." => ".join($vs_separator, $va_tmp)."<br>\n";
+					
+					$t_object->setIdnoWithTemplate(join($vs_separator, $va_tmp));
+				
 					$t_object->update();
 					if ($t_object->numErrors()) {
 						$t->rollback();
@@ -545,7 +619,6 @@ class ca_object_lots extends RepresentableBaseModel {
 					if ($po_application_plugin_manager) {
 						$po_application_plugin_manager->hookSaveItem(array('id' => $vn_object_id, 'table_num' => $t_object->tableNum(), 'table_name' => $t_object->tableName(), 'instance' => $t_object));
 					}
-					$vn_i++;
 				}
 			}
 			if ($vb_web_set_transaction) {
@@ -557,4 +630,3 @@ class ca_object_lots extends RepresentableBaseModel {
 	}
  	# ------------------------------------------------------
 }
-?>

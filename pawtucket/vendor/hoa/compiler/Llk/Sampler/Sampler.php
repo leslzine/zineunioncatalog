@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,7 +37,7 @@
 namespace Hoa\Compiler\Llk\Sampler;
 
 use Hoa\Compiler;
-use Hoa\Core;
+use Hoa\Consistency;
 use Hoa\Visitor;
 
 /**
@@ -45,7 +45,7 @@ use Hoa\Visitor;
  *
  * Sampler parent.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 abstract class Sampler
@@ -105,7 +105,6 @@ abstract class Sampler
      *
      * @param   \Hoa\Compiler\Llk\Parser  $compiler        Compiler/parser.
      * @param   \Hoa\Visitor\Visit        $tokenSampler    Token sampler.
-     * @return  void
      */
     public function __construct(
         Compiler\Llk\Parser $compiler,
@@ -234,4 +233,4 @@ abstract class Sampler
 /**
  * Flex entity.
  */
-Core\Consistency::flexEntity('Hoa\Compiler\Llk\Sampler\Sampler');
+Consistency::flexEntity('Hoa\Compiler\Llk\Sampler\Sampler');

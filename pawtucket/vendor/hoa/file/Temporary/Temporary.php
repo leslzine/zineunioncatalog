@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,15 +36,16 @@
 
 namespace Hoa\File\Temporary;
 
-use Hoa\Core;
+use Hoa\Consistency;
 use Hoa\File;
+use Hoa\Stream;
 
 /**
  * Class \Hoa\File\Temporary.
  *
  * Temporary file handler.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Temporary extends File
@@ -67,7 +68,6 @@ class Temporary extends File
      * @param   string  $context       Context ID (please, see the
      *                                 \Hoa\Stream\Context class).
      * @param   bool    $wait          Differ opening or not.
-     * @return  void
      */
     public function __construct(
         $streamName,
@@ -93,7 +93,7 @@ class Temporary extends File
      * @return  resource
      * @throws  \Hoa\File\Exception
      */
-    protected function &_open($streamName, \Hoa\Stream\Context $context = null)
+    protected function &_open($streamName, Stream\Context $context = null)
     {
         if (false === $out = @tmpfile()) {
             throw new File\Exception(
@@ -142,4 +142,4 @@ class Temporary extends File
 /**
  * Flex entity.
  */
-Core\Consistency::flexEntity('Hoa\File\Temporary\Temporary');
+Consistency::flexEntity('Hoa\File\Temporary\Temporary');

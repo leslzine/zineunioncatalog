@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@ use Hoa\Visitor;
  *
  * Evaluate arithmetical expressions.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  *             Ivan Enderlin, Cédric Dugat.
  * @license    New BSD License
  */
@@ -60,7 +60,6 @@ class Arithmetic implements Visitor\Visit
     /**
      * Initializes context.
      *
-     * @return  void
      */
     public function __construct()
     {
@@ -72,8 +71,8 @@ class Arithmetic implements Visitor\Visit
     /**
      * Set visitor's context
      *
-     * @param \Hoa\Math\Context $context
-     * @return \Hoa\Math\Context
+     * @param   \Hoa\Math\Context $context
+     * @return  \Hoa\Math\Context
      */
     public function setContext(Math\Context $context)
     {
@@ -87,7 +86,7 @@ class Arithmetic implements Visitor\Visit
     /**
      * Get visitor's context
      *
-     * @return \Hoa\Math\Context
+     * @return  \Hoa\Math\Context
      */
     public function getContext()
     {
@@ -185,7 +184,7 @@ class Arithmetic implements Visitor\Visit
                 if (null  === $parent ||
                     $type === $parent->getId()) {
                     $acc = function ($b) use ($a, $acc) {
-                        if (0 === $b) {
+                        if (0.0 === $b) {
                             throw new \RuntimeException(
                                 'Division by zero is not possible.'
                             );
@@ -209,7 +208,7 @@ class Arithmetic implements Visitor\Visit
                         break;
                     } else {
                         $acc = function ($b) use ($a, $acc) {
-                            if (0 === $b) {
+                            if (0.0 === $b) {
                                 throw new \RuntimeException(
                                     'Division by zero is not possible.'
                                 );
@@ -285,7 +284,7 @@ class Arithmetic implements Visitor\Visit
      * Get a function.
      *
      * @param   string  $name    Function name.
-     * @return  \Hoa\Core\Consistency\Xcallable
+     * @return  \Hoa\Consistency\Xcallable
      * @throws  \Hoa\Math\Exception\UnknownFunction
      */
     public function getFunction($name)
@@ -328,9 +327,9 @@ class Arithmetic implements Visitor\Visit
     /**
      * Get a variable.
      *
-     * @param  string   $name Variable name.
-     * @return callable
-     * @throws Math\Exception\UnknownVariable
+     * @param   string  $name    Variable name.
+     * @return  callable
+     * @throws  \Hoa\Math\Exception\UnknownVariable
      */
     public function getVariable($name)
     {
@@ -373,8 +372,8 @@ class Arithmetic implements Visitor\Visit
     /**
      * Add a variable.
      *
-     * @param   string   $name     Variable name.
-     * @param   callable $callable Callable.
+     * @param   string    $name        Variable name.
+     * @param   callable  $callable    Callable.
      * @return  void
      */
     public function addVariable($name, callable $callable)

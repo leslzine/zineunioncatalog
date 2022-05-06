@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2008-2015 Whirl-i-Gig
+ * Copyright 2008-2018 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -35,8 +35,8 @@
    */
 
 
-require_once(__CA_LIB_DIR__."/ca/IBundleProvider.php");
-require_once(__CA_LIB_DIR__."/ca/RepresentableBaseModel.php");
+require_once(__CA_LIB_DIR__."/IBundleProvider.php");
+require_once(__CA_LIB_DIR__."/RepresentableBaseModel.php");
 
 
 BaseModel::$s_ca_models_definitions['ca_collections'] =  array(
@@ -353,7 +353,18 @@ class ca_collections extends RepresentableBaseModel implements IBundleProvider {
 		$this->BUNDLES['ca_object_representations'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Media representations'));
 		$this->BUNDLES['ca_entities'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related entities'));
 		$this->BUNDLES['ca_objects'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects'));
-		$this->BUNDLES['ca_objects_table'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects table'));
+		$this->BUNDLES['ca_objects_table'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects list'));
+		$this->BUNDLES['ca_objects_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related objects list'));
+		$this->BUNDLES['ca_object_representations_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related object representations list'));
+		$this->BUNDLES['ca_entities_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related entities list'));
+		$this->BUNDLES['ca_places_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related places list'));
+		$this->BUNDLES['ca_occurrences_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related occurrences list'));
+		$this->BUNDLES['ca_collections_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related collections list'));
+		$this->BUNDLES['ca_list_items_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related list items list'));
+		$this->BUNDLES['ca_storage_locations_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related storage locations list'));
+		$this->BUNDLES['ca_loans_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related loans list'));
+		$this->BUNDLES['ca_movements_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related movements list'));
+		$this->BUNDLES['ca_object_lots_related_list'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related object lots list'));
 		$this->BUNDLES['ca_places'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related places'));
 		$this->BUNDLES['ca_collections'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related collections'));
 		$this->BUNDLES['ca_occurrences'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related occurrences'));
@@ -363,6 +374,8 @@ class ca_collections extends RepresentableBaseModel implements IBundleProvider {
 		$this->BUNDLES['ca_list_items'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related vocabulary terms'));
 		$this->BUNDLES['ca_sets'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related sets'));
 		$this->BUNDLES['ca_sets_checklist'] = array('type' => 'special', 'repeating' => true, 'label' => _t('Sets'));
+		
+		$this->BUNDLES['ca_item_tags'] = array('type' => 'special', 'repeating' => true, 'label' => _t('Tags'));
 		
 		$this->BUNDLES['ca_loans'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related loans'));
 		$this->BUNDLES['ca_movements'] = array('type' => 'related_table', 'repeating' => true, 'label' => _t('Related movements'));
@@ -375,5 +388,79 @@ class ca_collections extends RepresentableBaseModel implements IBundleProvider {
 		$this->BUNDLES['authority_references_list'] = array('type' => 'special', 'repeating' => false, 'label' => _t('References'));
 	}
 	# ------------------------------------------------------
+	/**
+	 * Override BaseModel::hierarchyWithTemplate() to optionally include top level of objects in collection hierarchy when 
+	 * object-collection hierarchies are enabled. 
+	 * 
+	 * @param string $ps_template 
+	 * @param array $pa_options Any options supported by BaseModel::getHierarchyAsList() and caProcessTemplateForIDs() as well as:
+	 *		sort = An array or semicolon delimited list of elements to sort on. [Default is null]
+	 * 		sortDirection = Direction to sorting, either 'asc' (ascending) or 'desc' (descending). [Default is asc]
+	 *		includeObjects = Include top level of objects in collection hierarchy when object-collection hierarchies are enabled. id values for included objects will be prefixed with "ca_objects:" [Default is true]
+	 *		objectTemplate = Display template to use for included objects. [Default is to use the value set in app.conf in the "ca_objects_hierarchy_browser_display_settings" directive]
+	 * @return array
+	 */
+	public function hierarchyWithTemplate($ps_template, $pa_options=null) {
+		$va_vals = parent::hierarchyWithTemplate($ps_template, $pa_options);
+		if ($this->getAppConfig()->get('ca_objects_x_collections_hierarchy_enabled') && caGetOption('includeObjects', $pa_options, true) && ($ps_object_template = caGetOption('objectTemplate', $pa_options, $this->getAppConfig()->get('ca_objects_hierarchy_browser_display_settings')))) {
+			$va_collection_ids = array_map(function($v) { return $v['id']; }, $va_vals);
+			
+			$qr = ca_objects_x_collections::find(['collection_id' => ['IN', $va_collection_ids], 'type_id' => $this->getAppConfig()->get('ca_objects_x_collections_hierarchy_relationship_type')], ['returnAs' => 'searchResult']);
+			$va_objects_by_collection = [];
+			while($qr->nextHit()) {
+				$va_objects_by_collection[$qr->get('ca_objects_x_collections.collection_id')][] = $qr->get('ca_objects_x_collections.object_id');
+ 			}
+ 			
+ 			$t_obj = new ca_objects();
+ 			$va_objects = [];
+ 			
+ 			if ($this->getAppConfig()->get('ca_collections_hierarchy_summary_show_full_object_hierarachy')) {
+                foreach($va_objects_by_collection as $vn_collection_id => $va_object_ids) {
+                    foreach($va_object_ids as $vn_object_id) {
+                        $va_objects[$vn_collection_id][$vn_object_id] = $t_obj->hierarchyWithTemplate($ps_object_template, ['object_id' => $vn_object_id, 'returnAsArray' => true, 'sort' => $this->getAppConfig()->get('ca_objects_hierarchy_browser_sort_values'), 'sortDirection' => $this->getAppConfig()->get('ca_objects_hierarchy_browser_sort_direction')]);
+                    }
+                }
+            
+                $va_vals_proc = [];
+                foreach($va_vals as $vn_i => $va_val) {
+                    $va_vals_proc[] = $va_val;
+                    if(isset($va_objects[$va_val['id']])) {
+                        foreach($va_objects[$va_val['id']] as $vn_object_id => $va_object_hierarchy) {
+                            foreach($va_object_hierarchy as $va_obj) {
+                                $va_vals_proc[] = [
+                                    'level' => $va_val['level'] + (int)$va_obj['level'],
+                                    'id' => "ca_objects:".$va_obj['id'],
+                                    'parent_id' => "ca_collections:{$va_val['id']}",
+                                    'display' => $va_obj['display']
+                                ];
+                            }
+                        }
+                    }
+                }
+            } else {
+                foreach($va_objects_by_collection as $vn_collection_id => $va_object_ids) {
+                    $va_objects[$vn_collection_id] = caProcessTemplateForIDs($ps_object_template, 'ca_objects', $va_object_ids, ['returnAsArray' => true, 'sort' => $this->getAppConfig()->get('ca_objects_hierarchy_browser_sort_values'), 'sortDirection' => $this->getAppConfig()->get('ca_objects_hierarchy_browser_sort_direction')]);
+                }
+            
+                $va_vals_proc = [];
+                foreach($va_vals as $vn_i => $va_val) {
+                    $va_vals_proc[] = $va_val;
+                    if(isset($va_objects[$va_val['id']])) {
+                        foreach($va_objects[$va_val['id']] as $vn_j => $vs_object_display_value) {
+                            $va_vals_proc[] = [
+                                'level' => $va_val['level'] + 1,
+                                'id' => "ca_objects:".$va_objects_by_collection[$va_val['id']][$vn_j],
+                                'parent_id' => "ca_collections:{$va_val['id']}",
+                                'display' => $vs_object_display_value
+                            ];
+                        }
+                    }
+                }
+            }
+ 			$va_vals = $va_vals_proc;
+		}
+		
+		return $va_vals;
+	}
+	# ------------------------------------------------------
 }
-?>

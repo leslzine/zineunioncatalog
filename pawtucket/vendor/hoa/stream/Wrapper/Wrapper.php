@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,14 +36,14 @@
 
 namespace Hoa\Stream\Wrapper;
 
-use Hoa\Core;
+use Hoa\Consistency;
 
 /**
  * Class \Hoa\Stream\Wrapper.
  *
  * Manipulate wrappers.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Wrapper
@@ -52,14 +52,14 @@ class Wrapper
      * Register a wrapper.
      *
      * @param   string  $protocol     The wrapper name to be registered.
-     * @param   string  $classname    Classname which implements the $protocol.
-     * @param   int     $flags        Should be set to STREAM_IS_URL if
-     *                                $protocol is a URL protocol. Default is 0,
+     * @param   string  $className    Class name which implements the protocol.
+     * @param   int     $flags        Should be set to `STREAM_IS_URL` if
+     *                                `$protocol` is a URL protocol. Default is 0,
      *                                local stream.
      * @return  bool
      * @throws  \Hoa\Stream\Wrapper\Exception
      */
-    public static function register($protocol, $classname, $flags = 0)
+    public static function register($protocol, $className, $flags = 0)
     {
         if (true === self::isRegistered($protocol)) {
             throw new Exception(
@@ -69,15 +69,16 @@ class Wrapper
             );
         }
 
-        if (false === class_exists($classname)) {
+        if (false === class_exists($className)) {
             throw new Exception(
-                'Cannot register the %s class because it is not found.',
+                'Cannot use the %s class for the implementation of ' .
+                'the %s protocol because it is not found.',
                 1,
-                $classname
+                [$className, $protocol]
             );
         }
 
-        return stream_wrapper_register($protocol, $classname, $flags);
+        return stream_wrapper_register($protocol, $className, $flags);
     }
 
     /**
@@ -88,7 +89,10 @@ class Wrapper
      */
     public static function unregister($protocol)
     {
-        return stream_wrapper_unregister($protocol);
+        // Silent errors if `$protocol` does not exist. This function already
+        // returns `false` in this case, which is the strict expected
+        // behaviour.
+        return @stream_wrapper_unregister($protocol);
     }
 
     /**
@@ -99,13 +103,17 @@ class Wrapper
      */
     public static function restore($protocol)
     {
-        return stream_wrapper_restore($protocol);
+        // Silent errors if `$protocol` does not exist. This function already
+        // returns `false` in this case, which is the strict expected
+        // behaviour.
+        return @stream_wrapper_restore($protocol);
     }
 
     /**
      * Check if a protocol is registered or not.
      *
      * @param   string  $protocol    Protocol name.
+     * @return  bool
      */
     public static function isRegistered($protocol)
     {
@@ -126,4 +134,4 @@ class Wrapper
 /**
  * Flex entity.
  */
-Core\Consistency::flexEntity('Hoa\Stream\Wrapper\Wrapper');
+Consistency::flexEntity('Hoa\Stream\Wrapper\Wrapper');

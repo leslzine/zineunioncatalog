@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2014 Whirl-i-Gig
+ * Copyright 2014-2016 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -28,9 +28,10 @@
  
  	require_once(__CA_MODELS_DIR__.'/ca_metadata_elements.php');
 	require_once(__CA_APP_DIR__."/helpers/contributeHelpers.php");
-	require_once(__CA_LIB_DIR__."/ca/Utils/DataMigrationUtils.php");
+	require_once(__CA_LIB_DIR__."/Utils/DataMigrationUtils.php");
+	require_once(__CA_LIB_DIR__.'/pawtucket/BasePawtucketController.php');
  
- 	class ContributeController extends ActionController {
+ 	class ContributeController extends BasePawtucketController {
  		# -------------------------------------------------------
  		/**
  		 * Instance for record being contributed
@@ -51,7 +52,10 @@
             if ($this->request->config->get('pawtucket_requires_login') && !($this->request->isLoggedIn())) {
                 $this->response->setRedirect(caNavUrl($this->request, "", "LoginReg", "LoginForm"));
             }
-            
+            if (($this->request->config->get('deploy_bristol'))&&($this->request->isLoggedIn())) {
+            	print "You do not have access to view this page.";
+            	die;
+            }
  			caSetPageCSSClasses(array("contribute"));
  		}
  		# -------------------------------------------------------
@@ -63,7 +67,7 @@
  			
  			if (!($va_form_info = $this->_checkForm($ps_function))) { return; }
  			
- 			MetaTagManager::setWindowTitle(caGetOption('formTitle', $va_form_info, $this->request->config->get("app_display_name").": "._t("Contribute")));
+ 			MetaTagManager::setWindowTitle(caGetOption('formTitle', $va_form_info, $this->request->config->get("app_display_name").$this->request->config->get("page_title_delimiter")._t("Contribute")));
  	
  			$this->view->setVar('t_subject', $t_subject = $this->pt_subject);
  			
@@ -76,6 +80,24 @@
  			// Format to wrap field-level error messages in
  			$vs_error_format = caGetOption('errorFormat', $va_form_info, '<div class="error">^ERRORS</div>');
  			
+ 			// Move errors for fields not in form to "general" errors list
+ 			if (is_array($va_response_data['errors']) && is_array($va_tags)) {
+ 				$va_tag_list = [];
+ 				foreach($va_tags as $vs_tag){ 
+ 					$va_tag_info = caParseTagOptions($vs_tag);
+ 					$va_tag_list[$va_tag_info['tag']] = true;
+ 				}
+ 				
+ 				if(!is_array($va_response_data['errors']['_general_'])) { $va_response_data['errors']['_general_'] = []; }
+ 				foreach($va_response_data['errors'] as $vs_field => $va_errors_for_field) {
+ 					if (!isset($va_tag_list[$vs_field])) { 
+ 						foreach($va_errors_for_field as $vn_i => $vs_error_for_field) {
+ 							$va_errors_for_field[$vn_i] = "<strong>".$t_subject->getDisplayLabel($vs_field)."</strong>: {$vs_error_for_field}";
+ 						}
+ 						$va_response_data['errors']['_general_'] = array_merge($va_response_data['errors']['_general_'], $va_errors_for_field);
+ 					}	
+ 				}
+ 			}
  			$this->view->setVar('errors', is_array($va_response_data['errors']['_general_']) ? join("; ", $va_response_data['errors']['_general_']) : "");
  			
  			foreach($va_tags as $vs_tag) {
@@ -182,7 +204,6 @@
  		 */
  		public function Send() {
  			global $g_ui_locale_id;
- 			$o_dm = Datamodel::load();
  			$ps_function = $this->request->getParameter('_contributeFormName', pString);
  			
  			$va_response_data = array('errors' => array(), 'numErrors' => 0, 'status' => 'OK');
@@ -204,7 +225,7 @@
  			$t_subject->set('type_id', $va_form_info['type'] ?  $va_form_info['type'] : $this->request->getParameter('type_id', pInteger));	// set type so idno's reflect proper format
     		
     		// Set window title        
-            MetaTagManager::setWindowTitle(caGetOption('formTitle', $va_form_info, $this->request->config->get("app_display_name").": "._t("Contribute")));
+            MetaTagManager::setWindowTitle(caGetOption('formTitle', $va_form_info, $this->request->config->get("app_display_name").$this->request->config->get("page_title_delimiter")._t("Contribute")));
             
             // Get list of form elements to process
             $va_fields = explode(';', $this->request->getParameter('_formElements', pString));
@@ -320,7 +341,7 @@
           			switch(sizeof($va_fld_bits)) {
           				case 2:
           				case 3:
-          					if (($t_instance = $o_dm->getInstanceByTableName($vs_table, true))) { 
+          					if (($t_instance = Datamodel::getInstance($vs_table, true))) { 
 								if ($t_instance->hasField($va_fld_bits[1])) {		// intrinsic
 								
 									if($t_instance->getFieldInfo($va_fld_bits[1], 'FIELD_TYPE') == FT_MEDIA) {
@@ -391,6 +412,9 @@
 				}
           		$this->_checkErrors($t_subject, $va_response_data, $vn_num_errors); 
             }
+            
+            if (isset($va_form_info['access'])) { $t_subject->set('access', $va_form_info['access']); }
+            if (isset($va_form_info['status'])) { $t_subject->set('status', $va_form_info['status']); }
         
             // Insert
             $t_subject->insert();
@@ -510,6 +534,17 @@
           	
           	$t_subject->update();
           	$this->_checkErrors($t_subject, $va_response_data, $vn_num_errors); 
+
+			# references -> links to table that are embeded in form/ not created by the user
+			# this is useful for cases where the contribute form is linked to from another record and you want to create a link to that record          	
+          	if(($ps_ref_table = $this->request->getParameter('ref_table', pString)) && ($ps_ref_row_id = $this->request->getParameter('ref_row_id', pInteger))){
+          		# --- look up if the relationship type is configured for this reference table
+          		$va_ref_config = caGetOption('references', $va_form_info, array());
+          		if($vs_rel_type = $va_ref_config[$ps_ref_table]){
+          			$t_subject->addRelationship($ps_ref_table, $ps_ref_row_id, $vs_rel_type);
+					if ($t_subject->numErrors()) { $this->_checkErrors($t_subject, $va_response_data, $vn_num_errors);} 
+          		}
+          	}
           	
             if($vn_num_errors > 0) {            
             	$va_response_data['numErrors'] = $vn_num_errors;
@@ -527,7 +562,17 @@
             	if (caGetOption('set_post_submission_notification', $va_form_info, false)) {
             		$this->notification->addNotification(caGetOption($vb_has_media ? 'post_submission_notification_message_with_media' : 'post_submission_notification_message', $va_form_info, _t('Thank you!')), __NOTIFICATION_TYPE_INFO__);
             	}
-            
+            	if($vs_admin_email = $this->config->get('admin_notification_email')){	
+            	 	# --- send admin email notification
+ 					$o_view = new View($this->request, array($this->request->getViewsDirectoryPath()));
+ 					# -- generate email subject line from template
+					$vs_subject_line = $o_view->render("mailTemplates/admin_contribute_subject.tpl");
+						
+					# -- generate mail text from template - get both the text and the html versions
+					$vs_mail_message_text = $o_view->render("mailTemplates/admin_contribute_notification.tpl");
+					$vs_mail_message_html = $o_view->render("mailTemplates/admin_contribute_notification_html.tpl");
+					caSendmail($vs_admin_email, $this->request->config->get("ca_admin_email"), $vs_subject_line, $vs_mail_message_text, $vs_mail_message_html);
+				}
             	// Redirect to "thank you" page. Options are:        
 				#		splash = redirect to Pawtucket splash/front page
 				#		url = redirect to Pawtucket url specified in post_submission_destination_url directive
@@ -573,7 +618,7 @@
  				throw new ApplicationException("Invalid contribute form type");
  			}
  			
- 			if (!($this->pt_subject = $this->request->datamodel->getInstanceByTableName($va_form_info['table']))) {
+ 			if (!($this->pt_subject = Datamodel::getInstance($va_form_info['table']))) {
  				// invalid form table (shouldn't happen unless misconfigured)
  				throw new ApplicationException("Invalid contribute table setting");
  			}

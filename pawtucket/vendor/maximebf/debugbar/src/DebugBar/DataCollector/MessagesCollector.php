@@ -12,11 +12,12 @@ namespace DebugBar\DataCollector;
 
 use Psr\Log\AbstractLogger;
 use DebugBar\DataFormatter\DataFormatterInterface;
+use DebugBar\DataFormatter\DebugBarVarDumper;
 
 /**
  * Provides a way to log messages
  */
-class MessagesCollector extends AbstractLogger implements DataCollectorInterface, MessagesAggregateInterface, Renderable
+class MessagesCollector extends AbstractLogger implements DataCollectorInterface, MessagesAggregateInterface, Renderable, AssetProvider
 {
     protected $name;
 
@@ -25,6 +26,12 @@ class MessagesCollector extends AbstractLogger implements DataCollectorInterface
     protected $aggregates = array();
 
     protected $dataFormater;
+
+    protected $varDumper;
+
+    // The HTML var dumper requires debug bar users to support the new inline assets, which not all
+    // may support yet - so return false by default for now.
+    protected $useHtmlVarDumper = false;
 
     /**
      * @param string $name
@@ -38,6 +45,7 @@ class MessagesCollector extends AbstractLogger implements DataCollectorInterface
      * Sets the data formater instance used by this collector
      *
      * @param DataFormatterInterface $formater
+     * @return $this
      */
     public function setDataFormatter(DataFormatterInterface $formater)
     {
@@ -45,12 +53,65 @@ class MessagesCollector extends AbstractLogger implements DataCollectorInterface
         return $this;
     }
 
+    /**
+     * @return DataFormatterInterface
+     */
     public function getDataFormatter()
     {
         if ($this->dataFormater === null) {
             $this->dataFormater = DataCollector::getDefaultDataFormatter();
         }
         return $this->dataFormater;
+    }
+
+    /**
+     * Sets the variable dumper instance used by this collector
+     *
+     * @param DebugBarVarDumper $varDumper
+     * @return $this
+     */
+    public function setVarDumper(DebugBarVarDumper $varDumper)
+    {
+        $this->varDumper = $varDumper;
+        return $this;
+    }
+
+    /**
+     * Gets the variable dumper instance used by this collector
+     *
+     * @return DebugBarVarDumper
+     */
+    public function getVarDumper()
+    {
+        if ($this->varDumper === null) {
+            $this->varDumper = DataCollector::getDefaultVarDumper();
+        }
+        return $this->varDumper;
+    }
+
+    /**
+     * Sets a flag indicating whether the Symfony HtmlDumper will be used to dump variables for
+     * rich variable rendering.  Be sure to set this flag before logging any messages for the
+     * first time.
+     *
+     * @param bool $value
+     * @return $this
+     */
+    public function useHtmlVarDumper($value = true)
+    {
+        $this->useHtmlVarDumper = $value;
+        return $this;
+    }
+
+    /**
+     * Indicates whether the Symfony HtmlDumper will be used to dump variables for rich variable
+     * rendering.
+     *
+     * @return mixed
+     */
+    public function isHtmlVarDumperUsed()
+    {
+        return $this->useHtmlVarDumper;
     }
 
     /**
@@ -63,12 +124,19 @@ class MessagesCollector extends AbstractLogger implements DataCollectorInterface
      */
     public function addMessage($message, $label = 'info', $isString = true)
     {
+        $messageText = $message;
+        $messageHtml = null;
         if (!is_string($message)) {
-            $message = $this->getDataFormatter()->formatVar($message);
+            // Send both text and HTML representations; the text version is used for searches
+            $messageText = $this->getDataFormatter()->formatVar($message);
+            if ($this->isHtmlVarDumperUsed()) {
+                $messageHtml = $this->getVarDumper()->renderVar($message);
+            }
             $isString = false;
         }
         $this->messages[] = array(
-            'message' => $message,
+            'message' => $messageText,
+            'message_html' => $messageHtml,
             'is_string' => $isString,
             'label' => $label,
             'time' => microtime(true)
@@ -85,6 +153,9 @@ class MessagesCollector extends AbstractLogger implements DataCollectorInterface
         $this->aggregates[] = $messages;
     }
 
+    /**
+     * @return array
+     */
     public function getMessages()
     {
         $messages = $this->messages;
@@ -107,6 +178,11 @@ class MessagesCollector extends AbstractLogger implements DataCollectorInterface
         return $messages;
     }
 
+    /**
+     * @param $level
+     * @param $message
+     * @param array $context
+     */
     public function log($level, $message, array $context = array())
     {
         $this->addMessage($message, $level);
@@ -120,6 +196,9 @@ class MessagesCollector extends AbstractLogger implements DataCollectorInterface
         $this->messages = array();
     }
 
+    /**
+     * @return array
+     */
     public function collect()
     {
         $messages = $this->getMessages();
@@ -129,11 +208,24 @@ class MessagesCollector extends AbstractLogger implements DataCollectorInterface
         );
     }
 
+    /**
+     * @return string
+     */
     public function getName()
     {
         return $this->name;
     }
 
+    /**
+     * @return array
+     */
+    public function getAssets() {
+        return $this->isHtmlVarDumperUsed() ? $this->getVarDumper()->getAssets() : array();
+    }
+
+    /**
+     * @return array
+     */
     public function getWidgets()
     {
         $name = $this->getName();

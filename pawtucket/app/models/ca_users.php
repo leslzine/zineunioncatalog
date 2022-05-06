@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2008-2016 Whirl-i-Gig
+ * Copyright 2008-2018 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -33,14 +33,15 @@
  /**
    *
    */
-require_once(__CA_LIB_DIR__."/core/AccessRestrictions.php");
-require_once(__CA_LIB_DIR__."/core/Logging/Eventlog.php");
+require_once(__CA_LIB_DIR__."/AccessRestrictions.php");
+require_once(__CA_LIB_DIR__."/Logging/Eventlog.php");
 require_once(__CA_APP_DIR__.'/models/ca_user_roles.php');
 include_once(__CA_APP_DIR__."/helpers/utilityHelpers.php");
 require_once(__CA_APP_DIR__.'/models/ca_user_groups.php');
 require_once(__CA_APP_DIR__.'/models/ca_locales.php');
-require_once(__CA_LIB_DIR__.'/core/Zend/Currency.php');
-require_once(__CA_LIB_DIR__ . '/core/Auth/AuthenticationManager.php');
+require_once(__CA_LIB_DIR__.'/Zend/Currency.php');
+require_once(__CA_LIB_DIR__ . '/Auth/AuthenticationManager.php');
+require_once(__CA_LIB_DIR__."/SyncableBaseModel.php");
 
 
 BaseModel::$s_ca_models_definitions['ca_users'] = array(
@@ -80,7 +81,7 @@ BaseModel::$s_ca_models_definitions['ca_users'] = array(
 				'IS_NULL' => false, 
 				'DEFAULT' => '',
 				'LABEL' => _t('Password'), 'DESCRIPTION' => _t('The login password for this user. Passwords must be at least 4 characters and should ideally contain a combination of letters and numbers. Passwords are case-sensitive.'),
-				'BOUNDS_LENGTH' => array(4,100)
+				'BOUNDS_LENGTH' => array(1,100)
 		),
 		'fname' => array(
 				'FIELD_TYPE' => FT_TEXT, 'DISPLAY_TYPE' => DT_FIELD, 
@@ -169,6 +170,8 @@ BaseModel::$s_ca_models_definitions['ca_users'] = array(
 );
 
 class ca_users extends BaseModel {
+	use SyncableBaseModel;
+	
 	# ---------------------------------
 	# --- Object attribute properties
 	# ---------------------------------
@@ -239,7 +242,7 @@ class ca_users extends BaseModel {
 	# Change logging
 	# ------------------------------------------------------
 	protected $UNIT_ID_FIELD = null;
-	protected $LOG_CHANGES_TO_SELF = false;
+	protected $LOG_CHANGES_TO_SELF = true;
 	protected $LOG_CHANGES_USING_AS_SUBJECT = array(
 		"FOREIGN_KEYS" => array(
 		
@@ -371,6 +374,13 @@ class ca_users extends BaseModel {
 			$this->postError(922, _t("Invalid email address"), 'ca_users->insert()');
 			return false;
 		}
+		
+		// check password policy	
+		if (!self::applyPasswordPolicy($this->get('password'))) {
+			$this->postError(922, _t("Password must %1", self::getPasswordPolicyAsText()), 'ca_users->insert()');
+			return false;
+		}
+		
 
 		# Confirmation key is an md5 hash than can be used as a confirmation token. The idea
 		# is that you create a new user record with the 'active' field set to false. You then
@@ -404,7 +414,108 @@ class ca_users extends BaseModel {
 		$this->set("vars",$this->opa_user_vars);
 		$this->set("volatile_vars",$this->opa_volatile_user_vars);
 		
-		return parent::insert($pa_options);
+		if ($vn_rc = parent::insert($pa_options)) {
+			$this->setGUID($pa_options);
+		}
+		return $vn_rc;
+	}
+	# ----------------------------------------
+	/**
+	 *
+	 */
+	static public function applyPasswordPolicy($password) {
+		$auth_config = Configuration::load(__CA_APP_DIR__."/conf/authentication.conf");
+		if(strtolower($auth_config->get('auth_adapter')) !== 'causers') { return true; }	// password policies only apply to integral auth system
+		
+		if (is_array($policies = $auth_config->get('password_policies')) && sizeof($policies)) {
+			// check password policy
+			$builder = new \PasswordPolicy\PolicyBuilder(new \PasswordPolicy\Policy);
+			foreach($policies as $p) {
+				if (is_array($rules = caGetOption('rules', $p, null))) {
+					$builder->minPassingRules(caGetOption('min_passing_rules', $p, 1), function($b) use ($rules) {
+						foreach($rules as $k => $v) {
+							$k = caSnakeToCamel($k);
+							if (in_array($k, ['minLength', 'maxLegth', 'upperCase', 'lowerCase', 'digits', 'specialCharacters', 'doesNotContain'])) {
+								$b->{$k}($v);
+							}
+						}
+					});
+				} else {
+					foreach($p as $k => $v) {
+						$k = caSnakeToCamel($k);
+						if (in_array($k, ['minLength', 'maxLegth', 'upperCase', 'lowerCase', 'digits', 'specialCharacters', 'doesNotContain'])) {
+							$builder->{$k}($v);
+						}
+					}
+				}
+			}
+			
+				
+			$validator = new \PasswordPolicy\Validator($builder->getPolicy());
+			if(!$validator->attempt($password)) {
+				return false;
+			}
+		}
+		return true;
+	}
+	# ----------------------------------------
+	/**
+	 *
+	 */
+	static public function getPasswordPolicyAsText() {
+		$auth_config = Configuration::load(__CA_APP_DIR__."/conf/authentication.conf");
+		if(strtolower($auth_config->get('auth_adapter')) !== 'causers') { return ''; }	// password policies only apply to integral auth system
+		
+		if (is_array($policies = $auth_config->get('password_policies')) && sizeof($policies)) {
+			$criteria = [];
+			foreach($policies as $p) {
+				if (is_array($rules = caGetOption('rules', $p, null))) {
+					foreach($rules as $k => $v) {
+						$group[] = self::_getPasswordPolicyRuleAsText($k, $v);
+					}
+					$criteria[] = _t('conform to at least %1 of the following: %2', caGetOption('min_passing_rules', $p, 1), join("; ", $group));
+				} else {
+					$group = [];
+					foreach($p as $k => $v) {
+						$criteria[] = self::_getPasswordPolicyRuleAsText($k, $v);
+					}
+				}
+			}
+	
+			return caMakeCommaListWithConjunction(array_filter($criteria, function($v) { return strlen($v); }));
+		}
+		return '';
+	}
+	# ----------------------------------------
+	/**
+	 *
+	 */
+	static private function _getPasswordPolicyRuleAsText($rule, $value) {
+		$v = (int)$value;
+		switch($rule) {
+			case 'min_length':
+				return ($v == 1) ? _t('be at least %1 character long', $v) : _t('be at least %1 characters long', $v);
+				break;
+			case 'max_length':
+				return ($v == 1) ? _t('be not longer than %1 character', $v) : _t('be not longer than %1 characters', $v);
+				break;
+			case 'upper_case':
+				return ($v == 1) ? _t('have at least %1 upper-case character', $v) : _t('have at least %1 upper-case character', $v);
+				break;
+			case 'lower_case':
+				return ($v == 1) ? _t('have at least %1 lower-case character', $v) : _t('have at least %1 lower-case characters', $v);
+				break;
+			case 'digits':
+				return ($v == 1) ? _t('have at least %1 digit', $v) : _t('have at least %1 digits', $v);
+				break;
+			case 'special_characters':
+				return ($v == 1) ? _t('have at least %1 non-alphanumeric character', $v) : _t('have at least %1 non-alphanumeric characters', $v);
+				break;
+			case 'dont_not_contain':
+				return _t('not contain any of the following: %1', is_array($value) ? join(", ", $value) : $value);
+				break;
+		}
+		return null;
 	}
 	# ----------------------------------------
 	/**
@@ -426,8 +537,13 @@ class ca_users extends BaseModel {
 				return false;
 			}
 		}
-
+	
 		if($this->changed('password')) {
+			if (!self::applyPasswordPolicy($this->get('password'))) {
+				$this->postError(922, _t("Password must %1", self::getPasswordPolicyAsText()), 'ca_users->update()');
+				return false;
+			}
+			
 			try {
 				$vs_backend_password = AuthenticationManager::updatePassword($this->get('user_name'), $this->get('password'));
 				$this->set('password', $vs_backend_password);
@@ -446,9 +562,17 @@ class ca_users extends BaseModel {
 			$this->set("volatile_vars",$this->opa_volatile_user_vars);
 		}
 		
+		$va_changed_fields = $this->getChangedFieldValuesArray();
+		unset($va_changed_fields['vars']);
+		unset($va_changed_fields['volatile_vars']);
+		
+		if (sizeof($va_changed_fields) == 0) {
+			$pa_options['dontLogChange'] = true;
+		}
+		
 		unset(ca_users::$s_user_role_cache[$this->getPrimaryKey()]);
 		unset(ca_users::$s_group_role_cache[$this->getPrimaryKey()]);
-		return parent::update();
+		return parent::update($pa_options);
 	}
 	# ----------------------------------------
 	/**
@@ -460,7 +584,8 @@ class ca_users extends BaseModel {
 	public function delete($pb_delete_related=false, $pa_options=null, $pa_fields=null, $pa_table_list=null) {
 		$this->clearErrors();
 		$this->set('userclass', 255);
-
+		$vn_primary_key = $this->getPrimaryKey();
+		
 		if($this->getPrimaryKey()>0) {
 			try {
 				AuthenticationManager::deleteUser($this->get('user_name'));
@@ -472,7 +597,11 @@ class ca_users extends BaseModel {
 			}
 		}
 
-		return $this->update();
+		$vn_rc = $this->update($pa_options);
+		
+		if($vn_primary_key && $vn_rc && caGetOption('hard', $pa_options, false)) {
+			$this->removeGUID($vn_primary_key);
+		}
 	}
 	# ----------------------------------------
 	public function set($pa_fields, $pm_value="", $pa_options=null) {
@@ -1342,7 +1471,7 @@ class ca_users extends BaseModel {
 		}
 		if (!$vb_got_group) {
 			if (!$t_group->load(array("name" => $ps_group))) {
-				if (!$t_group->load(array("name_short" => $ps_group))) {
+				if (!$t_group->load(array("code" => $ps_group))) {
 					return false;
 				}
 			}
@@ -1731,7 +1860,7 @@ class ca_users extends BaseModel {
 				case 'FT_IMPORT_EXPORT_MAPPING_GROUP_EDITOR_UI':
 					$vn_table_num = $this->_editorPrefFormatTypeToTableNum($va_pref_info["formatType"]);
 					
-					$t_instance = $this->getAppDatamodel()->getInstanceByTableNum($vn_table_num, true);
+					$t_instance = Datamodel::getInstanceByTableNum($vn_table_num, true);
 					
 					$va_valid_uis = $this->_getUIListByType($vn_table_num);
 					if (is_array($ps_value)) {
@@ -1839,9 +1968,12 @@ class ca_users extends BaseModel {
 								}
 							}
 							
+							$va_restrict_to_ui_locales = $this->getAppConfig()->getList('restrict_to_ui_locales');
+							
 							$va_opts = array();
 							$t_locale = new ca_locales();
 							foreach($va_locales as $vs_code => $va_parts) {
+								if (is_array($va_restrict_to_ui_locales) && sizeof($va_restrict_to_ui_locales) && !in_array($vs_code, $va_restrict_to_ui_locales)) { continue; }
 								try {
 									$vs_lang_name = Zend_Locale::getTranslation(strtolower($va_parts[0]), 'language', strtolower($va_parts[0]));
 									$vs_country_name = Zend_Locale::getTranslation($va_parts[1], 'Country', $vs_code);
@@ -1900,7 +2032,7 @@ class ca_users extends BaseModel {
 						case 'FT_IMPORT_EXPORT_MAPPING_GROUP_EDITOR_UI':
 						
 							$vn_table_num = $this->_editorPrefFormatTypeToTableNum($va_pref_info['formatType']);
-							$t_instance = $this->getAppDatamodel()->getInstanceByTableNum($vn_table_num, true);
+							$t_instance = Datamodel::getInstanceByTableNum($vn_table_num, true);
 							
 							$va_values = $this->getPreference($ps_pref);
 							if (!is_array($va_values)) { $va_values = array(); }
@@ -2368,8 +2500,7 @@ class ca_users extends BaseModel {
 			$va_saved_searches = array();
 		}
 		
-		$o_dm = Datamodel::load();
-		if (!($vn_table_num = $o_dm->getTableNum($pm_table_name_or_num))) { return false; }
+		if (!($vn_table_num = Datamodel::getTableNum($pm_table_name_or_num))) { return false; }
 		
 		if(!is_array($va_searches = $this->getVar('saved_searches'))) { $va_searches = array(); }
 		
@@ -2395,8 +2526,7 @@ class ca_users extends BaseModel {
 	 * @return boolean Returns true if specified search was cleared, false if not
 	 */
 	public function removeSavedSearch($pm_table_name_or_num, $ps_type, $ps_key) {
-		$o_dm = Datamodel::load();
-		if (!($vn_table_num = $o_dm->getTableNum($pm_table_name_or_num))) { return false; }
+		if (!($vn_table_num = Datamodel::getTableNum($pm_table_name_or_num))) { return false; }
 		
 		if(!is_array($va_searches = $this->getVar('saved_searches'))) { return false; }
 		unset($va_searches[$vn_table_num][strtolower($ps_type)][$ps_key]);
@@ -2413,9 +2543,8 @@ class ca_users extends BaseModel {
 	 * @return boolean True if searches were cleared, false if the operation failed
 	 */
 	public function clearSavedSearches($pm_table_name_or_num=null, $ps_type=null) {
-		$o_dm = Datamodel::load();
 		if ($pm_table_name_or_num) {
-			$vn_table_num = $o_dm->getTableNum($pm_table_name_or_num);
+			$vn_table_num = Datamodel::getTableNum($pm_table_name_or_num);
 		}
 		
 		if(!is_array($va_searches = $this->getVar('saved_searches'))) { $va_searches = array(); }
@@ -2449,8 +2578,7 @@ class ca_users extends BaseModel {
 	 * @return array An array containing the search parameters + 2 special entries: (1) _label is a display label for the search (2) _form_id is the ca_search_forms.form_id for the search, if the search was form-based. _form_id will be undefined if the search was basic (eg. simple one-entry text search)
 	 */
 	public function getSavedSearchByKey($pm_table_name_or_num, $ps_type, $ps_key) {
-		$o_dm = Datamodel::load();
-		if (!($vn_table_num = $o_dm->getTableNum($pm_table_name_or_num))) { return false; }
+		if (!($vn_table_num = Datamodel::getTableNum($pm_table_name_or_num))) { return false; }
 		if(!is_array($va_searches = $this->getVar('saved_searches'))) { $va_searches = array(); }
 		
 		return is_array($va_searches[$vn_table_num][strtolower($ps_type)][$ps_key]) ? $va_searches[$vn_table_num][strtolower($ps_type)][$ps_key] : array();
@@ -2464,8 +2592,7 @@ class ca_users extends BaseModel {
 	 * @return array An array of saved searches, or an empty array if no searches have been saved. The array's keys are 32 character md5 saved search keys. The values are arrays with the search parameters + 2 special entries: (1) _label is a display label for the search (2) _form_id is the ca_search_forms.form_id for the search, if the search was form-based. _form_id will be undefined if the search was basic (eg. simple one-entry text search)
 	 */
 	public function getSavedSearches($pm_table_name_or_num, $ps_type) {
-		$o_dm = Datamodel::load();
-		if (!($vn_table_num = $o_dm->getTableNum($pm_table_name_or_num))) { return false; }
+		if (!($vn_table_num = Datamodel::getTableNum($pm_table_name_or_num))) { return false; }
 		if(!is_array($va_searches = $this->getVar('saved_searches'))) { $va_searches = array(); }
 	
 		return is_array($va_searches[$vn_table_num][strtolower($ps_type)]) ? $va_searches[$vn_table_num][strtolower($ps_type)] : array();
@@ -2568,7 +2695,7 @@ class ca_users extends BaseModel {
 	public function close() {
 		if($this->getPrimaryKey()) {
 			$this->setMode(ACCESS_WRITE);
-			$this->update();
+			$this->update(['dontLogChange' => true]);
 		}
 	}
 	# ----------------------------------------
@@ -2662,7 +2789,14 @@ class ca_users extends BaseModel {
 			} else {
 				// We rely on the system clock here. That might not be the smartest thing to do but it'll work for now.
 				$vn_token_expiration_timestamp = time() + 15 * 60; // now plus 15 minutes
-				$vs_password_reset_token = hash('sha256', mcrypt_create_iv(32, MCRYPT_DEV_URANDOM));
+
+				if(function_exists('mcrypt_create_iv')) {
+					$vs_password_reset_token = hash('sha256', mcrypt_create_iv(32, MCRYPT_DEV_URANDOM));
+				} elseif(function_exists('openssl_random_pseudo_bytes')) {
+					$vs_password_reset_token = hash('sha256', openssl_random_pseudo_bytes(32));
+				} else {
+					throw new Exception('mcrypt or OpenSSL is required for CollectiveAccess to run');
+				}
 
 				$this->setVar("{$vs_app_name}_password_reset_token", $vs_password_reset_token);
 				$this->setVar("{$vs_app_name}_password_reset_expiration", $vn_token_expiration_timestamp);
@@ -2735,12 +2869,13 @@ class ca_users extends BaseModel {
 		));
 
 		global $g_request;
-		caSendMessageUsingView($g_request,
+		caSendMessageUsingView(
+			$g_request,
 			$this->get('email'),
 			__CA_ADMIN_EMAIL__,
 			"[{$vs_app_name}] "._t("Information regarding your account"),
 			'account_deactivated.tpl',
-			array()
+			[], null, null, ['source' => 'Account deactivation']
 		);
 	}
 	# ----------------------------------------
@@ -2763,16 +2898,17 @@ class ca_users extends BaseModel {
 		$vs_user_email = $this->get('email');
 		$vs_app_name = $this->getAppConfig()->get("app_name");
 
-		return caSendMessageUsingView($g_request,
+		return caSendMessageUsingView(
+			$g_request,
 			$vs_user_email,
 			__CA_ADMIN_EMAIL__,
 			"[{$vs_app_name}] "._t("Information regarding your password"),
 			'forgot_password.tpl',
-			array(
+			[
 				'password_reset_token' => $ps_password_reset_token,
 				'user_name' => $this->get('user_name'),
 				'site_host' => $this->getAppConfig()->get('site_host'),
-			)
+			], null, null, ['source' => 'Password reset']
 		);
 	}
 	# ----------------------------------------
@@ -2845,12 +2981,22 @@ class ca_users extends BaseModel {
 	 * keys and values that can contain such information
 	 */
 	public function authenticate(&$ps_username, $ps_password="", $pa_options=null) {
+		$vs_username = $ps_username;
+		if ($vs_rewrite_username_with_regex = $this->opo_auth_config->get('rewrite_username_with_regex')) {
+			$vs_rewrite_username_to_regex = $this->opo_auth_config->get('rewrite_username_to_regex');
+			$vs_username = preg_replace("!".preg_quote($vs_rewrite_username_with_regex, "!")."!", $vs_rewrite_username_to_regex, $vs_username);
+		}
+		
+		 if (!$vs_username && AuthenticationManager::supports(__CA_AUTH_ADAPTER_FEATURE_USE_ADAPTER_LOGIN_FORM__)) { 
+            $va_info = AuthenticationManager::getUserInfo($vs_username, $ps_password, ['minimal' => true]); 
+            $vs_username = $va_info['user_name'];
+        }
 
 		// if user doesn't exist, try creating it through the authentication backend, if the backend supports it
-		if (strlen($ps_username) > 0 && !$this->load($ps_username)) {
+		if (strlen($vs_username) > 0 && !$this->load($vs_username)) {
 			if(AuthenticationManager::supports(__CA_AUTH_ADAPTER_FEATURE_AUTOCREATE_USERS__)) {
 				try{
-					$va_values = AuthenticationManager::getUserInfo($ps_username, $ps_password);
+					$va_values = AuthenticationManager::getUserInfo($vs_username, $ps_password);
 				} catch (Exception $e) {
 					$this->opo_log->log(array(
 						'CODE' => 'SYS', 'SOURCE' => 'ca_users/authenticate',
@@ -2901,19 +3047,20 @@ class ca_users extends BaseModel {
 			}
 		}
 
-		try {
-			if(AuthenticationManager::authenticate($ps_username, $ps_password, $pa_options)) {
-				$this->load($ps_username);
-				return true;
-			}
-		}  catch (Exception $e) {
-			$this->opo_log->log(array(
-				'CODE' => 'SYS', 'SOURCE' => 'ca_users/authenticate',
-				'MESSAGE' => _t('There was an error while trying to authenticate user %1: The message was %2 : %3', $ps_username, get_class($e), $e->getMessage())
-			));
-			return false;
-		}
-		
+        if ($vs_username) {
+            try {
+                if(AuthenticationManager::authenticate($vs_username, $ps_password, $pa_options)) {
+                    $this->load($vs_username);
+                    return true;
+                }
+            }  catch (Exception $e) {
+                $this->opo_log->log(array(
+                    'CODE' => 'SYS', 'SOURCE' => 'ca_users/authenticate',
+                    'MESSAGE' => _t('There was an error while trying to authenticate user %1: The message was %2 : %3', $ps_username, get_class($e), $e->getMessage())
+                ));
+                return false;
+            }
+        }
 		// check ips
 		if (!isset($pa_options["dont_check_ips"]) || !$pa_options["dont_check_ips"]) {
 			if ($vn_user_id = $this->ipAuthenticate()) {
@@ -3186,7 +3333,7 @@ class ca_users extends BaseModel {
 				$vn_type_id = (int)$pm_type_code_or_id; 
 			} else {
 				$t_list = new ca_lists();
-				$t_instance = $this->getAppDatamodel()->getInstanceByTableName($ps_table_name, true);
+				$t_instance = Datamodel::getInstanceByTableName($ps_table_name, true);
 				if(!($vs_type_list_code = $t_instance->getTypeListCode())) { return __CA_BUNDLE_ACCESS_EDIT__; } // no type-level acces control for tables without type lists (like ca_lists)
 				$vn_type_id = (int)$t_list->getItemIDFromList($vs_type_list_code, $pm_type_code_or_id);
 			}
@@ -3238,8 +3385,7 @@ class ca_users extends BaseModel {
 		
 		$vn_default_access = (int)$this->getAppConfig()->get('default_type_access_level');
 		
-		$o_dm = Datamodel::load();
-		$t_instance = $o_dm->getInstanceByTableName($ps_table_name, true);
+		$t_instance = Datamodel::getInstanceByTableName($ps_table_name, true);
 		$vs_table = $t_instance->tableName();
 		if (!method_exists($t_instance, "getTypeList")) { return null; }
 		$va_available_types = $t_instance->getTypeList(array('idsOnly' => true));
@@ -3287,7 +3433,7 @@ class ca_users extends BaseModel {
 				$vn_source_id = (int)$pm_source_code_or_id; 
 			} else {
 				$t_list = new ca_lists();
-				$t_instance = $this->getAppDatamodel()->getInstanceByTableName($ps_table_name, true);
+				$t_instance = Datamodel::getInstanceByTableName($ps_table_name, true);
 				$vn_source_id = (int)$t_list->getItemIDFromList($t_instance->getSourceListCode(), $pm_source_code_or_id);
 			}
 			$vn_access = -1;
@@ -3338,8 +3484,7 @@ class ca_users extends BaseModel {
 		
 		$vn_default_access = (int)$this->getAppConfig()->get('default_source_access_level');
 		
-		$o_dm = Datamodel::load();
-		$t_instance = $o_dm->getInstanceByTableName($ps_table_name, true);
+		$t_instance = Datamodel::getInstanceByTableName($ps_table_name, true);
 		$vs_table = $t_instance->tableName();
 		
 		if (!method_exists($t_instance, "getSourceList")) { return null; }

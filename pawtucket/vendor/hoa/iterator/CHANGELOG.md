@@ -1,3 +1,30 @@
+# 2.17.01.10
+
+  * Quality: Happy new year! (Alexis von Glasow, 2017-01-09T21:38:04+01:00)
+
+# 2.16.11.19
+
+  * Documentation: New `README.md` file. (Ivan Enderlin, 2016-10-18T15:52:39+02:00)
+  * Documentation: Use HTTPS in `composer.json`. (Ivan Enderlin, 2016-10-07T07:56:41+02:00)
+  * Documentation: Update support properties. (Alexis von Glasow, 2016-10-06T19:17:39+02:00)
+  * Test: Use the `::class` constant. (Ivan Enderlin, 2016-09-09T09:29:43+02:00)
+
+# 2.16.03.15
+
+  * Buffer: Make `current` & `key` methods inlinable. (Ivan Enderlin, 2016-02-22T12:01:39+01:00)
+  * README: Illustrate `Hoa\Iterator\Buffer`. (Ivan Enderlin, 2016-01-21T01:09:38+01:00)
+  * Test: Write test suite of `Hoa\Iterator\Buffer`. (Ivan Enderlin, 2016-01-21T01:01:32+01:00)
+  * Iterator: New `Buffer` iterator. (Ivan Enderlin, 2016-01-21T00:55:07+01:00)
+  * Documentation: Update API annotation. (Ivan Enderlin, 2016-01-20T22:18:30+01:00)
+
+# 2.16.01.11
+
+  * Quality: Drop PHP5.4. (Ivan Enderlin, 2016-01-11T09:15:26+01:00)
+  * Quality: Run devtools:cs. (Ivan Enderlin, 2016-01-09T09:03:23+01:00)
+  * Core: Remove `Hoa\Core`. (Ivan Enderlin, 2016-01-09T08:17:49+01:00)
+  * Consistency: Use `Hoa\Consistency`. (Ivan Enderlin, 2015-12-08T11:16:47+01:00)
+  * Exception: Use `Hoa\Exception`. (Ivan Enderlin, 2015-11-20T07:54:23+01:00)
+
 # 1.15.10.29
 
   * Test: Specify file type with `hoa://Test/Vfs`. (Ivan Enderlin, 2015-10-29T22:20:43+01:00)

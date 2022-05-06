@@ -1,3 +1,25 @@
+# 1.17.01.13
+
+  * Quality: Happy new year! (Alexis von Glasow, 2017-01-12T14:00:43+01:00)
+  * Documentation: New `README.md` file. (Ivan Enderlin, 2016-10-21T17:01:48+02:00)
+  * Documentation: Update `support` properties. (Ivan Enderlin, 2016-10-11T16:56:16+02:00)
+
+# 1.16.09.06
+
+  * Grammar: Update copyright. (Ivan Enderlin, 2016-01-17T14:21:02+01:00)
+
+# 1.16.01.15
+
+  * Composer: New stable library. (Ivan Enderlin, 2016-01-14T22:08:58+01:00)
+
+# 1.16.01.14
+
+  * Quality: Drop PHP5.4. (Ivan Enderlin, 2016-01-11T09:15:26+01:00)
+  * Quality: Run devtools:cs. (Ivan Enderlin, 2016-01-09T09:07:46+01:00)
+  * Core: Remove `Hoa\Core`. (Ivan Enderlin, 2016-01-09T08:22:53+01:00)
+  * Consistency: Use `Hoa\Consistency`. (Ivan Enderlin, 2015-12-08T21:44:37+01:00)
+  * Exception: Use `Hoa\Exception`. (Ivan Enderlin, 2015-11-20T13:06:20+01:00)
+
 # 0.15.08.13
 
   * Fix non-breaking space character encoding. (Metalaka, 2015-08-13T08:01:24+02:00)

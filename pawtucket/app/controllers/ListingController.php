@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------
  *
  * Software by Whirl-i-Gig (http://www.whirl-i-gig.com)
- * Copyright 2013-2014 Whirl-i-Gig
+ * Copyright 2013-2018 Whirl-i-Gig
  *
  * For more information visit http://www.CollectiveAccess.org
  *
@@ -26,8 +26,9 @@
  * ----------------------------------------------------------------------
  */
  	require_once(__CA_APP_DIR__."/helpers/listingHelpers.php");
+	require_once(__CA_LIB_DIR__.'/pawtucket/BasePawtucketController.php');
  	
- 	class ListingController extends ActionController {
+ 	class ListingController extends BasePawtucketController {
  		# -------------------------------------------------------
  		/**
  		 *
@@ -39,22 +40,20 @@
  		 */
  		private $opo_result_context = null;
  		
- 		/**
- 		 *
- 		 */
- 		private $opa_access_values = null;
- 		
  		# -------------------------------------------------------
  		public function __construct(&$po_request, &$po_response, $pa_view_paths=null) {
  			parent::__construct($po_request, $po_response, $pa_view_paths);
  			if ($this->request->config->get('pawtucket_requires_login')&&!($this->request->isLoggedIn())) {
 				$this->response->setRedirect(caNavUrl($this->request, "", "LoginReg", "LoginForm"));
             }
- 			$this->opa_access_values = caGetUserAccessValues($po_request);
+            if (($this->request->config->get('deploy_bristol'))&&($this->request->isLoggedIn())) {
+            	print "You do not have access to view this page.";
+            	die;
+            }
+ 			
  			caSetPageCSSClasses(array("listing"));
  		}
  		# -------------------------------------------------------
- 		
  		/**
  		 *
  		 */ 
@@ -68,10 +67,8 @@
  				// invalid listing type – throw error
  				throw new ApplicationException("Invalid listing type");
  			}
- 			MetaTagManager::setWindowTitle($this->request->config->get("app_display_name").": ".$va_listing_info["displayName"]);
+ 			MetaTagManager::setWindowTitle($this->request->config->get("app_display_name").$this->request->config->get("page_title_delimiter").$va_listing_info["displayName"]);
  			
- 			$o_dm = Datamodel::load();
- 		
  			$ps_function = strtolower($ps_function);
  			
  			$vs_table = $va_listing_info['table'];
@@ -81,7 +78,7 @@
  			$this->opo_result_context = new ResultContext($this->request, $vs_table, $this->ops_find_type);
  			$this->opo_result_context->setAsLastFind();
  			
- 			if (!($t_instance = $o_dm->getInstanceByTableName($vs_table, true))) {
+ 			if (!($t_instance = Datamodel::getInstance($vs_table, true))) {
  				throw new ApplicationException("Invalid table");
  			}
  			
@@ -102,10 +99,18 @@
  			} else {
  				$va_types = caMakeTypeIDList($vs_table, $va_types, array('dontIncludeSubtypesInTypeRestriction' => true));
  			}
- 			
- 			$o_browse->addCriteria("_search", array($vs_search));
  			$o_browse->setTypeRestrictions($va_types, array('dontExpandHierarchically' => true));
+ 			
+ 			$va_relationship_types = caGetOption('restrictToRelationshipTypes', $va_listing_info, array(), array('castTo' => 'array'));
+ 		
+ 			$o_browse->addCriteria("_search", array($vs_search));
+ 			
+ 			foreach($va_relationship_types as $vs_x => $va_rel_types) {
+ 				if (!is_array($va_rel_types)) { continue; }
+ 				$o_browse->addCriteria("_reltypes", "{$vs_x}:".join(",", $va_rel_types));
+ 			}
  			$o_browse->execute(array('checkAccess' => $this->opa_access_values));
+			
 			//
 			// Facets for search 
 			//
@@ -142,17 +147,14 @@
  			}else{
  				$vb_sort_changed = true;
  			}
- 			if($vb_sort_changed){
-				# --- set the default sortDirection if available
-				$va_sort_direction = caGetOption('sortDirection', $va_listing_info, null);
-				if($ps_sort_direction = $va_sort_direction[$ps_sort]){
-					$this->opo_result_context->setCurrentSortDirection($ps_sort_direction);
-				} 			
- 			}
-  			if (!($ps_sort_direction = $this->request->getParameter("direction", pString))) {
- 				if (!($ps_sort_direction = $this->opo_result_context->getCurrentSortDirection())) {
- 					$ps_sort_direction = 'asc';
- 				}
+ 			$va_sort_direction = caGetOption('sortDirection', $va_listing_info, null);
+ 			
+  			if (!($ps_sort_direction = $this->request->getParameter("direction", pString))) {  			    
+                # --- set the default sortDirection if available
+                if(!($ps_sort_direction = $va_sort_direction[$ps_sort])){
+                    $ps_sort_direction = 'asc';
+                } 
+                $this->opo_result_context->setCurrentSortDirection($ps_sort_direction);
  			}
  			
  			$this->opo_result_context->setCurrentSort($ps_sort);
@@ -166,12 +168,6 @@
 			$this->view->setVar('sort_direction', $ps_sort_direction);
 
 
-
-
-
-
-			
- 			
  			$va_lists = array();
  			$va_res_list = array();
  			

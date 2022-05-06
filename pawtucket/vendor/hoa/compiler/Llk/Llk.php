@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,83 +37,26 @@
 namespace Hoa\Compiler\Llk;
 
 use Hoa\Compiler;
-use Hoa\Core;
+use Hoa\Consistency;
 use Hoa\Stream;
 
 /**
  * Class \Hoa\Compiler\Llk.
  *
- * Provide a generic LL(k) compiler compiler using the PP language.
- * Support: skip (%skip), token (%token), token namespace (ns1:token name value
- * -> ns2), rule (rule:), disjunction (|), capturing (operators ( and )),
- * quantifiers (?, +, * and {n,m}), node (#node) with options (#node:options),
- * skipped token (::token::), kept token (<token>), token unification (token[i])
- * and rule unification (rule()[j]).
+ * This class provides a set of static helpers to manipulate (load and save) a
+ * compiler more easily.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
-class Llk
+abstract class Llk
 {
     /**
-     * Load parser from a file that contains the grammar.
-     * Example:
-     *     %skip  space     \s
+     * Load in-memory parser from a grammar description file.
+     * The grammar description language is PP. See
+     * `hoa://Library/Compiler/Llk/Llk.pp` for an example, or the documentation.
      *
-     *     %token word      [a-zA-Z]+
-     *     %token number    [0-9]+(\.[0-9]+)?
-     *     %token open_par  \(
-     *     %token close_par \)
-     *     %token equal     =
-     *     %token plus      \+
-     *     %token minus     \-
-     *     %token divide    \/
-     *     %token times     \*
-     *
-     *     #equation:
-     *         formula() ::equal:: <number>
-     *
-     *     formula:
-     *         factor()
-     *         (
-     *             ::plus::  formula() #addition
-     *           | ::minus:: formula() #substraction
-     *         )?
-     *
-     *     factor:
-     *         operand()
-     *         (
-     *             ::times::  factor() #product
-     *           | ::divide:: factor() #division
-     *         )?
-     *
-     *     operand:
-     *           <word>
-     *         | ::minus::? <number> #number
-     *         | ::open_par:: formula() ::close_par::
-     *
-     * Use tabs or spaces, it does not matter.
-     * Instructions follow the form: %<instruction>. Only %skip and %token are
-     * supported.
-     * Rules follow the form: <rule name>:<new line>[<space><rule><new line>]*.
-     * Contexts are useful to set specific skips and tokens. We give a full
-     * example with context + unification (for fun) to parse <a>b</a>:
-     *     %skip   space         \s
-     *     %token  lt             <        ->  in_tag
-     *     %token  inner          [^<]*
-     *
-     *     %skip   in_tag:space   \s
-     *     %token  in_tag:slash   /
-     *     %token  in_tag:tagname [^>]+
-     *     %token  in_tag:gt      >        ->  default
-     *
-     *     #foo:
-     *         ::lt:: <tagname[0]> ::gt::
-     *         <inner>
-     *         ::lt:: ::slash:: ::tagname[0]:: ::gt::
-     *
-     * @param   \Hoa\Stream\IStream\In  $stream    Stream that contains the
-     *                                             grammar.
+     * @param   \Hoa\Stream\IStream\In  $stream    Stream to read to grammar.
      * @return  \Hoa\Compiler\Llk\Parser
      * @throws  \Hoa\Compiler\Exception
      */
@@ -127,12 +70,12 @@ class Llk
             if ($stream instanceof Stream\IStream\Pointable) {
                 if (0 < $stream->tell()) {
                     $message .=
-                        ': the stream ' . $stream->getStreamName() .
+                        ': The stream ' . $stream->getStreamName() .
                         ' is pointable and not rewinded, maybe it ' .
                         'could be the reason';
                 } else {
                     $message .=
-                        ': nothing to read on the stream ' .
+                        ': Nothing to read on the stream ' .
                         $stream->getStreamName();
                 }
             }
@@ -140,28 +83,189 @@ class Llk
             throw new Compiler\Exception($message . '.', 0);
         }
 
-        static::parsePP($pp, $tokens, $rawRules);
+        static::parsePP($pp, $tokens, $rawRules, $pragmas, $stream->getStreamName());
 
         $ruleAnalyzer = new Rule\Analyzer($tokens);
         $rules        = $ruleAnalyzer->analyzeRules($rawRules);
 
-        return new Parser($tokens, $rules);
+        return new Parser($tokens, $rules, $pragmas);
     }
 
     /**
-     * Parse PP.
+     * Save in-memory parser to PHP code.
+     * The generated PHP code will load the same in-memory parser. The state
+     * will be reset. The parser will be saved as a class, named after
+     * `$className`. To retrieve the parser, one must instanciate this class.
      *
-     * @param   string  $pp        PP.
-     * @param   array   $tokens    Extracted tokens.
-     * @param   array   $rules     Extracted raw rules.
+     * @param   \Hoa\Compiler\Llk\Parser  $parser       Parser to save.
+     * @param   string                    $className    Parser classname.
+     * @return  string
+     */
+    public static function save(Parser $parser, $className)
+    {
+        $out        = null;
+        $outTokens  = null;
+        $outRules   = null;
+        $outPragmas = null;
+        $outExtra   = null;
+
+        $escapeRuleName = function ($ruleName) use ($parser) {
+            if (true == $parser->getRule($ruleName)->isTransitional()) {
+                return $ruleName;
+            }
+
+            return '\'' . $ruleName . '\'';
+        };
+
+        foreach ($parser->getTokens() as $namespace => $tokens) {
+            $outTokens .= '                \'' . $namespace . '\' => [' . "\n";
+
+            foreach ($tokens as $tokenName => $tokenValue) {
+                $outTokens .=
+                    '                    \'' . $tokenName . '\' => \'' .
+                    str_replace(
+                        ['\'', '\\\\'],
+                        ['\\\'', '\\\\\\'],
+                        $tokenValue
+                    ) . '\',' . "\n";
+            }
+
+            $outTokens .= '                ],' . "\n";
+        }
+
+        foreach ($parser->getRules() as $rule) {
+            $arguments = [];
+
+            // Name.
+            $arguments['name'] = $escapeRuleName($rule->getName());
+
+            if ($rule instanceof Rule\Token) {
+                // Token name.
+                $arguments['tokenName'] = '\'' . $rule->getTokenName() . '\'';
+            } else {
+                if ($rule instanceof Rule\Repetition) {
+                    // Minimum.
+                    $arguments['min'] = $rule->getMin();
+
+                    // Maximum.
+                    $arguments['max'] = $rule->getMax();
+                }
+
+                // Children.
+                $ruleChildren = $rule->getChildren();
+
+                if (null === $ruleChildren) {
+                    $arguments['children'] = 'null';
+                } elseif (false === is_array($ruleChildren)) {
+                    $arguments['children'] = $escapeRuleName($ruleChildren);
+                } else {
+                    $arguments['children'] =
+                        '[' .
+                        implode(', ', array_map($escapeRuleName, $ruleChildren)) .
+                        ']';
+                }
+            }
+
+            // Node ID.
+            $nodeId = $rule->getNodeId();
+
+            if (null === $nodeId) {
+                $arguments['nodeId'] = 'null';
+            } else {
+                $arguments['nodeId'] = '\'' . $nodeId . '\'';
+            }
+
+            if ($rule instanceof Rule\Token) {
+                // Unification.
+                $arguments['unification'] = $rule->getUnificationIndex();
+
+                // Kept.
+                $arguments['kept'] = $rule->isKept() ? 'true' : 'false';
+            }
+
+            // Default node ID.
+            if (null !== $defaultNodeId = $rule->getDefaultId()) {
+                $defaultNodeOptions = $rule->getDefaultOptions();
+
+                if (!empty($defaultNodeOptions)) {
+                    $defaultNodeId .= ':' . implode('', $defaultNodeOptions);
+                }
+
+                $outExtra .=
+                    "\n" .
+                    '        $this->getRule(' . $arguments['name'] . ')->setDefaultId(' .
+                        '\'' . $defaultNodeId . '\'' .
+                    ');';
+            }
+
+            // PP representation.
+            if (null !== $ppRepresentation = $rule->getPPRepresentation()) {
+                $outExtra .=
+                    "\n" .
+                    '        $this->getRule(' . $arguments['name'] . ')->setPPRepresentation(' .
+                        '\'' . str_replace('\'', '\\\'', $ppRepresentation) . '\'' .
+                    ');';
+            }
+
+            $outRules .=
+                "\n" .
+                '                ' . $arguments['name'] . ' => new \\' . get_class($rule) . '(' .
+                implode(', ', $arguments) .
+                '),';
+        }
+
+        foreach ($parser->getPragmas() as $pragmaName => $pragmaValue) {
+            $outPragmas .=
+                "\n" .
+                '                \'' . $pragmaName . '\' => ' .
+                (is_bool($pragmaValue)
+                    ? (true === $pragmaValue ? 'true' : 'false')
+                    : (is_int($pragmaValue)
+                        ? $pragmaValue
+                        : '\'' . $pragmaValue . '\'')) .
+                ',';
+        }
+
+        $out .=
+            'class ' . $className . ' extends \Hoa\Compiler\Llk\Parser' . "\n" .
+            '{' . "\n" .
+            '    public function __construct()' . "\n" .
+            '    {' . "\n" .
+            '        parent::__construct(' . "\n" .
+            '            [' . "\n" .
+            $outTokens .
+            '            ],' . "\n" .
+            '            [' .
+            $outRules . "\n" .
+            '            ],' . "\n" .
+            '            [' .
+            $outPragmas . "\n" .
+            '            ]' . "\n" .
+            '        );' . "\n" .
+            $outExtra . "\n" .
+            '    }' . "\n" .
+            '}' . "\n";
+
+        return $out;
+    }
+
+    /**
+     * Parse the grammar description language.
+     *
+     * @param   string  $pp            Grammar description.
+     * @param   array   $tokens        Extracted tokens.
+     * @param   array   $rules         Extracted raw rules.
+     * @param   array   $pragmas       Extracted raw pragmas.
+     * @param   string  $streamName    The name of the stream containing the grammar.
      * @return  void
      * @throws  \Hoa\Compiler\Exception
      */
-    public static function parsePP($pp, &$tokens, &$rules)
+    public static function parsePP($pp, &$tokens, &$rules, &$pragmas, $streamName)
     {
-        $lines  = explode("\n", $pp);
-        $tokens = ['default' => []];
-        $rules  = [];
+        $lines   = explode("\n", $pp);
+        $pragmas = [];
+        $tokens  = ['default' => []];
+        $rules   = [];
 
         for ($i = 0, $m = count($lines); $i < $m; ++$i) {
             $line = rtrim($lines[$i]);
@@ -171,7 +275,28 @@ class Llk
             }
 
             if ('%' == $line[0]) {
-                if (0 !== preg_match('#^%skip\s+(?:([^:]+):)?([^\s]+)\s+(.*)$#u', $line, $matches)) {
+                if (0 !== preg_match('#^%pragma\h+([^\h]+)\h+(.*)$#u', $line, $matches)) {
+                    switch ($matches[2]) {
+                        case 'true':
+                            $pragmaValue = true;
+
+                            break;
+
+                        case 'false':
+                            $pragmaValue = false;
+
+                            break;
+
+                        default:
+                            if (true === ctype_digit($matches[2])) {
+                                $pragmaValue = intval($matches[2]);
+                            } else {
+                                $pragmaValue = $matches[2];
+                            }
+                    }
+
+                    $pragmas[$matches[1]] = $pragmaValue;
+                } elseif (0 !== preg_match('#^%skip\h+(?:([^:]+):)?([^\h]+)\h+(.*)$#u', $line, $matches)) {
                     if (empty($matches[1])) {
                         $matches[1] = 'default';
                     }
@@ -184,10 +309,12 @@ class Llk
                         $tokens[$matches[1]]['skip'] = $matches[3];
                     } else {
                         $tokens[$matches[1]]['skip'] =
-                            '(?:' . $matches[3] . ')|' .
-                            $tokens[$matches[1]]['skip'];
+                            '(?:' .
+                                $tokens[$matches[1]]['skip'] . '|' .
+                                $matches[3] .
+                            ')';
                     }
-                } elseif (0 !== preg_match('#^%token\s+(?:([^:]+):)?([^\s]+)\s+(.*?)(?:\s+->\s+(.*))?$#u', $line, $matches)) {
+                } elseif (0 !== preg_match('#^%token\h+(?:([^:]+):)?([^\h]+)\h+(.*?)(?:\h+->\h+(.*))?$#u', $line, $matches)) {
                     if (empty($matches[1])) {
                         $matches[1] = 'default';
                     }
@@ -208,7 +335,7 @@ class Llk
                         1,
                         [
                             $line,
-                            $stream->getStreamName(),
+                            $streamName,
                             $i + 1
                         ]
                     );
@@ -249,4 +376,4 @@ class Llk
 /**
  * Flex entity.
  */
-Core\Consistency::flexEntity('Hoa\Compiler\Llk\Llk');
+Consistency::flexEntity('Hoa\Compiler\Llk\Llk');

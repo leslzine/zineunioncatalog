@@ -8,7 +8,7 @@
  *
  * New BSD License
  *
- * Copyright © 2007-2015, Hoa community. All rights reserved.
+ * Copyright © 2007-2017, Hoa community. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@ use Hoa\Test;
  *
  * Test suite of the limit iterator.
  *
- * @copyright  Copyright © 2007-2015 Hoa community
+ * @copyright  Copyright © 2007-2017 Hoa community
  * @license    New BSD License
  */
 class Limit extends Test\Unit\Suite
@@ -77,7 +77,7 @@ class Limit extends Test\Unit\Suite
             ->exception(function () use ($iterator) {
                 new LUT\Limit($iterator, -2, 3);
             })
-                ->isInstanceOf('OutOfRangeException');
+                ->isInstanceOf(\OutOfRangeException::class);
     }
 
     public function case_empty()
@@ -90,6 +90,6 @@ class Limit extends Test\Unit\Suite
             ->exception(function () use ($limit) {
                 iterator_to_array($limit);
             })
-                ->isInstanceOf('OutOfBoundsException');
+                ->isInstanceOf(\OutOfBoundsException::class);
     }
 }

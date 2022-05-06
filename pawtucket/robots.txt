@@ -1,3 +1,16 @@
+User-agent: SemrushBot
+Disallow: /
+User-agent: SemrushBot-SA
+Disallow: /
+User-agent: SemrushBot-BA
+Disallow: /
+User-agent: SemrushBot-SI
+Disallow: /
+
+User-agent: rogerbot
+Disallow: /
+User-agent: dotbot
+Disallow: / 
 User-agent: *
 Disallow: /index.php/Detail/Download*
 Disallow: /index.php/Detail/*/Download*

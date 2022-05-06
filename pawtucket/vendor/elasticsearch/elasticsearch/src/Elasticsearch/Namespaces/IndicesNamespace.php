@@ -7,9 +7,9 @@ namespace Elasticsearch\Namespaces;
  *
  * @category Elasticsearch
  * @package  Elasticsearch\Namespaces\IndicesNamespace
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class IndicesNamespace extends AbstractNamespace
 {
@@ -18,7 +18,7 @@ class IndicesNamespace extends AbstractNamespace
      *
      * @param $params array Associative array of parameters
      *
-     * @return bool
+     * @return boolean
      */
     public function exists($params)
     {
@@ -35,7 +35,7 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
 
-        return BooleanRequestWrapper::performRequest($endpoint);
+        return BooleanRequestWrapper::performRequest($endpoint, $this->transport);
     }
 
     /**
@@ -64,9 +64,7 @@ class IndicesNamespace extends AbstractNamespace
                  ->setFeature($feature)
                  ->setParams($params);
 
-        $response = $endpoint->performRequest();
-
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -91,9 +89,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Segments');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -115,40 +112,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Template\Delete');
         $endpoint->setName($name);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
-    }
-
-    /**
-     * $params['index'] = (list) A comma-separated list of index names to register warmer for; use `_all` or empty string to perform the operation on all indices (Required)
-     *        ['name']  = (string) The name of the warmer (supports wildcards); leave empty to delete all warmers
-     *        ['type']  = (list) A comma-separated list of document types to register warmer for; use `_all` or empty string to perform the operation on all types
-     *
-     * @param $params array Associative array of parameters
-     *
-     * @return array
-     */
-    public function deleteWarmer($params)
-    {
-        $index = $this->extractArgument($params, 'index');
-
-        $name = $this->extractArgument($params, 'name');
-
-        $type = $this->extractArgument($params, 'type');
-
-        /** @var callback $endpointBuilder */
-        $endpointBuilder = $this->endpoints;
-
-        /** @var \Elasticsearch\Endpoints\Indices\Warmer\Delete $endpoint */
-        $endpoint = $endpointBuilder('Indices\Warmer\Delete');
-        $endpoint->setIndex($index)
-                 ->setName($name)
-                 ->setType($type);
-        $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
-
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -170,9 +135,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Delete');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -196,7 +160,6 @@ class IndicesNamespace extends AbstractNamespace
      *        ['refresh']        = (boolean) Return information about refresh operations
      *        ['search']         = (boolean) Return information about search operations; use the `groups` parameter to include information for specific search groups
      *        ['store']          = (boolean) Return information about the size of the index
-     *        ['warmer']         = (boolean) Return information about warmers
      *
      * @param $params array Associative array of parameters
      *
@@ -216,9 +179,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setMetric($metric);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -243,9 +205,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -269,9 +230,36 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Gateway\Snapshot');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
+    }
+
+    /**
+     * $params['index']          = (string) The name of the source index to shrink
+     *        ['target']         = (string) The name of the target index to shrink into
+     *        ['timeout']        = (time) Explicit operation timeout
+     *        ['master_timeout'] = (time) Specify timeout for connection to master
+     *
+     * @param $params array Associative array of parameters
+     *
+     * @return array
+     */
+    public function shrink($params = array())
+    {
+        $index = $this->extractArgument($params, 'index');
+        $target = $this->extractArgument($params, 'target');
+        $body = $this->extractArgument($params, 'body');
+
+        /** @var callback $endpointBuilder */
+        $endpointBuilder = $this->endpoints;
+
+        /** @var \Elasticsearch\Endpoints\Indices\Shrink $endpoint */
+        $endpoint = $endpointBuilder('Indices\Shrink');
+        $endpoint->setIndex($index)
+                 ->setTarget($target)
+                 ->setBody($body);
+
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -296,9 +284,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setType($type);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -332,9 +319,8 @@ class IndicesNamespace extends AbstractNamespace
                  ->setFields($fields);
 
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -361,9 +347,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Flush');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -391,8 +376,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
         $endpoint->setSynced(true);
-        $response = $endpoint->performRequest();
-        return $endpoint->resultOrFuture($response);
+
+        return $this->performRequest($endpoint);
     }
 
 
@@ -418,9 +403,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Refresh');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -444,9 +428,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Recovery');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -458,7 +441,7 @@ class IndicesNamespace extends AbstractNamespace
      *
      * @param $params array Associative array of parameters
      *
-     * @return array
+     * @return boolean
      */
     public function existsType($params)
     {
@@ -478,7 +461,7 @@ class IndicesNamespace extends AbstractNamespace
                  ->setType($type);
         $endpoint->setParams($params);
 
-        return BooleanRequestWrapper::performRequest($endpoint);
+        return BooleanRequestWrapper::performRequest($endpoint, $this->transport);
     }
 
     /**
@@ -508,75 +491,8 @@ class IndicesNamespace extends AbstractNamespace
                  ->setName($name)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
-    }
-
-    /**
-     * $params['index'] = (list) A comma-separated list of index names to restrict the operation; use `_all` or empty string to perform the operation on all indices (Required)
-     *        ['name']  = (string) The name of the warmer (supports wildcards); leave empty to get all warmers
-     *        ['type']  = (list) A comma-separated list of document types to restrict the operation; leave empty to perform the operation on all types
-     *
-     * @param $params array Associative array of parameters
-     *
-     * @return array
-     */
-    public function getWarmer($params)
-    {
-        $index = $this->extractArgument($params, 'index');
-
-        $name = $this->extractArgument($params, 'name');
-
-        $type = $this->extractArgument($params, 'type');
-
-        /** @var callback $endpointBuilder */
-        $endpointBuilder = $this->endpoints;
-
-        /** @var \Elasticsearch\Endpoints\Indices\Warmer\Get $endpoint */
-        $endpoint = $endpointBuilder('Indices\Warmer\Get');
-        $endpoint->setIndex($index)
-                 ->setName($name)
-                 ->setType($type);
-        $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
-
-        return $endpoint->resultOrFuture($response);
-    }
-
-    /**
-     * $params['index'] = (list) A comma-separated list of index names to register the warmer for; use `_all` or empty string to perform the operation on all indices (Required)
-     *        ['name']  = (string) The name of the warmer (Required)
-     *        ['type']  = (list) A comma-separated list of document types to register the warmer for; leave empty to perform the operation on all types
-     *        ['body']  = (list) A comma-separated list of document types to register the warmer for; leave empty to perform the operation on all types
-     *
-     * @param $params array Associative array of parameters
-     *
-     * @return array
-     */
-    public function putWarmer($params)
-    {
-        $index = $this->extractArgument($params, 'index');
-
-        $name = $this->extractArgument($params, 'name');
-
-        $type = $this->extractArgument($params, 'type');
-
-        $body = $this->extractArgument($params, 'body');
-
-        /** @var callback $endpointBuilder */
-        $endpointBuilder = $this->endpoints;
-
-        /** @var \Elasticsearch\Endpoints\Indices\Warmer\Put $endpoint */
-        $endpoint = $endpointBuilder('Indices\Warmer\Put');
-        $endpoint->setIndex($index)
-                 ->setName($name)
-                 ->setType($type)
-                 ->setBody($body);
-        $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
-
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -604,9 +520,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setName($name)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -639,9 +554,8 @@ class IndicesNamespace extends AbstractNamespace
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -668,9 +582,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setName($name);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -701,9 +614,8 @@ class IndicesNamespace extends AbstractNamespace
                  ->setType($type)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -728,9 +640,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setType($type);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -751,9 +662,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Template\Get');
         $endpoint->setName($name);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -761,7 +671,7 @@ class IndicesNamespace extends AbstractNamespace
      *
      * @param $params array Associative array of parameters
      *
-     * @return array
+     * @return boolean
      */
     public function existsTemplate($params)
     {
@@ -778,7 +688,7 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setName($name);
         $endpoint->setParams($params);
 
-        return BooleanRequestWrapper::performRequest($endpoint);
+        return BooleanRequestWrapper::performRequest($endpoint, $this->transport);
     }
 
     /**
@@ -804,41 +714,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
-    }
-
-    /**
-     * $params['index']                = (list) A comma-separated list of index names; use `_all` or empty string to perform the operation on all indices
-     *        ['flush']                = (boolean) Specify whether the index should be flushed after performing the operation (default: true)
-     *        ['max_num_segments']     = (number) The number of segments the index should be merged into (default: dynamic)
-     *        ['only_expunge_deletes'] = (boolean) Specify whether the operation should only expunge deleted documents
-     *        ['operation_threading']  = () TODO: ?
-     *        ['refresh']              = (boolean) Specify whether the index should be refreshed after performing the operation (default: true)
-     *        ['wait_for_merge']       = (boolean) Specify whether the request should block until the merge process is finished (default: true)
-     *        ['ignore_unavailable']   = (bool) Whether specified concrete indices should be ignored when unavailable (missing or closed)
-     *        ['allow_no_indices']     = (bool) Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
-     *        ['expand_wildcards']     = (enum) Whether to expand wildcard expression to concrete indices that are open, closed or both.
-     *
-     * @param $params array Associative array of parameters
-     *
-     * @return array
-     */
-    public function optimize($params = array())
-    {
-        $index = $this->extractArgument($params, 'index');
-
-        /** @var callback $endpointBuilder */
-        $endpointBuilder = $this->endpoints;
-
-        /** @var \Elasticsearch\Endpoints\Indices\Optimize $endpoint */
-        $endpoint = $endpointBuilder('Indices\Optimize');
-        $endpoint->setIndex($index);
-        $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
-
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -868,9 +745,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\ForceMerge');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -896,9 +772,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setName($name);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -920,21 +795,24 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Open');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
      * $params['index']        = (string) The name of the index to scope the operation
      *        ['analyzer']     = (string) The name of the analyzer to use
      *        ['field']        = (string) Use the analyzer configured for this field (instead of passing the analyzer name)
-     *        ['filters']      = (list) A comma-separated list of filters to use for the analysis
+     *        ['filter']       = (list) A comma-separated list of filters to use for the analysis
      *        ['prefer_local'] = (boolean) With `true`, specify that a local shard should be used if available, with `false`, use a random shard (default: true)
      *        ['text']         = (string) The text on which the analysis should be performed (when request body is not used)
      *        ['tokenizer']    = (string) The name of the tokenizer to use for the analysis
      *        ['format']       = (enum) Format of the output
      *        ['body']         = (enum) Format of the output
+     *        ['char_filter']  = (list) A comma-separated list of character filters to use for the analysis
+     *        ['explain']      = (bool) With `true`, outputs more advanced details. (default: false)
+     *        ['attributes']   = (list) A comma-separated list of token attributes to output, this parameter works only with `explain=true`
+     *        ['format']       = (enum) Format of the output (["detailed", "text"])
      *
      * @param $params array Associative array of parameters
      *
@@ -954,9 +832,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -989,9 +866,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Cache\Clear');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1017,9 +893,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setBody($body);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1044,9 +919,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setName($name);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1058,7 +932,7 @@ class IndicesNamespace extends AbstractNamespace
      *
      * @param $params array Associative array of parameters
      *
-     * @return array
+     * @return boolean
      */
     public function existsAlias($params)
     {
@@ -1078,7 +952,7 @@ class IndicesNamespace extends AbstractNamespace
                  ->setName($name);
         $endpoint->setParams($params);
 
-        return BooleanRequestWrapper::performRequest($endpoint);
+        return BooleanRequestWrapper::performRequest($endpoint, $this->transport);
     }
 
     /**
@@ -1103,9 +977,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Status');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1129,9 +1002,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint->setIndex($index)
                  ->setName($name);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1153,9 +1025,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Close');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1176,9 +1047,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Seal');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1205,8 +1075,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Upgrade\Post');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
-        return $endpoint->resultOrFuture($response);
+
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1233,9 +1103,8 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\Upgrade\Get');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
     }
 
     /**
@@ -1261,8 +1130,36 @@ class IndicesNamespace extends AbstractNamespace
         $endpoint = $endpointBuilder('Indices\ShardStores');
         $endpoint->setIndex($index);
         $endpoint->setParams($params);
-        $response = $endpoint->performRequest();
 
-        return $endpoint->resultOrFuture($response);
+        return $this->performRequest($endpoint);
+    }
+
+    /**
+     * $params['newIndex']       = (string) The name of the rollover index
+     *        ['alias']          = (string) The name of the alias to rollover
+     *        ['timeout']        = (time) Explicit operation timeout
+     *        ['master_timeout'] = (time) Specify timeout for connection to master
+     *
+     * @param $params array Associative array of parameters
+     *
+     * @return array
+     */
+    public function rollover($params)
+    {
+        $newIndex = $this->extractArgument($params, 'newIndex');
+        $alias = $this->extractArgument($params, 'alias');
+        $body = $this->extractArgument($params, 'body');
+
+        /** @var callback $endpointBuilder */
+        $endpointBuilder = $this->endpoints;
+
+        /** @var \Elasticsearch\Endpoints\Indices\Rollover $endpoint */
+        $endpoint = $endpointBuilder('Indices\Rollover');
+        $endpoint->setNewIndex($newIndex)
+            ->setAlias($alias)
+            ->setParams($params)
+            ->setBody($body);
+
+        return $this->performRequest($endpoint);
     }
 }

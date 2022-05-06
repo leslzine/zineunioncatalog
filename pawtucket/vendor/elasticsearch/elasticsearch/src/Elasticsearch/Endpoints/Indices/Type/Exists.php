@@ -10,9 +10,9 @@ use Elasticsearch\Common\Exceptions;
  *
  * @category Elasticsearch
  * @package  Elasticsearch\Endpoints\Indices\Type
- * @author   Zachary Tong <zachary.tong@elasticsearch.com>
+ * @author   Zachary Tong <zach@elastic.co>
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache2
- * @link     http://elasticsearch.org
+ * @link     http://elastic.co
  */
 class Exists extends AbstractEndpoint
 {
@@ -20,7 +20,7 @@ class Exists extends AbstractEndpoint
      * @throws \Elasticsearch\Common\Exceptions\RuntimeException
      * @return string
      */
-    protected function getURI()
+    public function getURI()
     {
         if (isset($this->index) !== true) {
             throw new Exceptions\RuntimeException(
@@ -32,13 +32,7 @@ class Exists extends AbstractEndpoint
                 'type is required for Exists'
             );
         }
-        $index = $this->index;
-        $type = $this->type;
-        $uri   = "/$index/$type";
-
-        if (isset($index) === true && isset($type) === true) {
-            $uri = "/$index/$type";
-        }
+        $uri   = "/{$this->index}/_mapping/{$this->type}";
 
         return $uri;
     }
@@ -46,7 +40,7 @@ class Exists extends AbstractEndpoint
     /**
      * @return string[]
      */
-    protected function getParamWhitelist()
+    public function getParamWhitelist()
     {
         return array(
             'ignore_unavailable',
@@ -59,7 +53,7 @@ class Exists extends AbstractEndpoint
     /**
      * @return string
      */
-    protected function getMethod()
+    public function getMethod()
     {
         return 'HEAD';
     }

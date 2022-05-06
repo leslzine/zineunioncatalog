@@ -33,8 +33,8 @@
  /**
    *
    */
-require_once(__CA_LIB_DIR__.'/ca/ObjectRelationshipBaseModel.php');
-require_once(__CA_LIB_DIR__."/ca/CurrentLocationCriterionTrait.php");
+require_once(__CA_LIB_DIR__.'/ObjectRelationshipBaseModel.php');
+require_once(__CA_LIB_DIR__."/CurrentLocationCriterionTrait.php");
 
 
 BaseModel::$s_ca_models_definitions['ca_objects_x_storage_locations'] = array(
@@ -172,7 +172,7 @@ class ca_objects_x_storage_locations extends ObjectRelationshipBaseModel {
 	# Change logging
 	# ------------------------------------------------------
 	protected $UNIT_ID_FIELD = null;
-	protected $LOG_CHANGES_TO_SELF = false;
+	protected $LOG_CHANGES_TO_SELF = true;
 	protected $LOG_CHANGES_USING_AS_SUBJECT = array(
 		"FOREIGN_KEYS" => array(
 			'object_id', 'location_id'
@@ -241,6 +241,7 @@ class ca_objects_x_storage_locations extends ObjectRelationshipBaseModel {
 	 *
 	 */
 	private function _getStorageLocationInfo() {
+	    require_once(__CA_MODELS_DIR__."/ca_storage_locations.php");
 		$t_loc = new ca_storage_locations($this->get('location_id'));
 		if ($t_loc->getPrimaryKey()) {
 			return array(
